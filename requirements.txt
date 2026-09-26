@@ -1,0 +1,5 @@
+requests>=2.32
+langchain-core>=1.6
+fastembed>=0.8
+rank-bm25>=0.2
+streamlit>=1.64
