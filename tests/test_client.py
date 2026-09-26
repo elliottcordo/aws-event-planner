@@ -114,6 +114,29 @@ class SessionTests(unittest.TestCase):
         self.assertNotIn("Authorization", first["headers"])
         self.assertEqual(second["headers"]["Authorization"], "Bearer test-token")
 
+    def test_rejected_token_signs_in_again_once(self):
+        """A 401 on a signed-in call clears the token and retries once."""
+        authenticator = FakeAuthenticator()
+        transport = FakeTransport(
+            ApiError("Token revoked", 401),
+            {"schedule": {"reserved": [], "favorites": [], "personalTime": []}},
+        )
+        client = EventsClient(transport, authenticator)
+
+        client.get_schedule("e1")
+
+        self.assertTrue(authenticator.signed_out)
+        self.assertEqual(len(transport.requests), 2)
+
+    def test_second_401_is_raised(self):
+        """If the retry is rejected too, the error is raised."""
+        client, transport = make_client(
+            ApiError("No", 401), ApiError("Still no", 401)
+        )
+        with self.assertRaises(ApiError):
+            client.get_schedule("e1")
+        self.assertEqual(len(transport.requests), 2)
+
     def test_session_call_does_not_retry_other_errors(self):
         """Errors other than 401 are raised without signing in."""
         client, transport = make_client(ApiError("No such session", 404))

@@ -223,13 +223,28 @@ class EventsClient:
             body: Optional dict sent as the JSON request body.
             signed_in: Whether to send the attendee's access token.
         """
-        headers = {}
-        if signed_in:
-            if self.authenticator is None:
-                raise ValueError("This call needs an authenticator to sign in")
-            access_token = self.authenticator.get_access_token()
-            headers["Authorization"] = f"Bearer {access_token}"
+        if not signed_in:
+            return self._request(method, path, params, body, headers={})
+        if self.authenticator is None:
+            raise ValueError("This call needs an authenticator to sign in")
 
+        try:
+            return self._request(method, path, params, body, self._auth_headers())
+        except ApiError as error:
+            if error.status_code != 401:
+                raise
+        # The API rejected a token that had not reached its recorded expiry
+        # (for example, it was revoked). Forget it and sign in again, once.
+        self.authenticator.sign_out()
+        return self._request(method, path, params, body, self._auth_headers())
+
+    def _auth_headers(self):
+        """Return the Authorization header for the current access token."""
+        access_token = self.authenticator.get_access_token()
+        return {"Authorization": f"Bearer {access_token}"}
+
+    def _request(self, method, path, params, body, headers):
+        """Send one request through the transport."""
         return self.transport.request(
             method,
             self.base_url + path,

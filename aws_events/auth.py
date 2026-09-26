@@ -10,7 +10,7 @@ import urllib.parse
 import webbrowser
 from pathlib import Path
 
-from aws_events.errors import EventsError, SignInError
+from aws_events.errors import ApiError, EventsError, SignInError
 
 
 AUTHORIZE_URL = "https://oauth.awsevents.com/oauth2/authorize"
@@ -24,6 +24,13 @@ DEFAULT_TOKEN_PATH = Path.home() / ".aws-events-token.json"
 
 # Refresh a little early so a token does not expire mid-request.
 EXPIRY_MARGIN_SECONDS = 60
+
+# How long to wait for the browser to come back from sign-in.
+SIGN_IN_TIMEOUT_SECONDS = 300
+
+# Token endpoint statuses meaning the refresh token is no longer accepted
+# (for example {"error": "invalid_grant"}), so a fresh sign-in is needed.
+REJECTED_REFRESH_STATUSES = (400, 401)
 
 
 class TokenStore:
@@ -66,7 +73,7 @@ class Authenticator:
     """
 
     def __init__(self, token_store, transport, open_browser=webbrowser.open,
-                 clock=time.time):
+                 clock=time.time, sign_in_when_needed=True):
         """Create an authenticator.
 
         Args:
@@ -74,39 +81,71 @@ class Authenticator:
             transport: An HttpTransport used to call the token endpoint.
             open_browser: Called with the sign-in URL to show it to the user.
             clock: Returns the current time in seconds; replaceable in tests.
+            sign_in_when_needed: If True, get_access_token starts a browser
+                sign-in when there is no usable token. If False it raises
+                SignInError instead, and sign-in happens only when sign_in()
+                is called directly (the web UI's Sign in button does this).
         """
         self.token_store = token_store
         self.transport = transport
         self.open_browser = open_browser
         self.clock = clock
+        self.sign_in_when_needed = sign_in_when_needed
+
+    def has_saved_sign_in(self):
+        """Return True if tokens are saved, without contacting the server.
+
+        Saved tokens may still turn out to be rejected; get_access_token then
+        clears them.
+        """
+        return bool(self.token_store.load())
 
     def get_access_token(self):
         """Return a valid access token.
 
         Uses the saved token if it is still fresh, refreshes it if it has
-        expired, and falls back to a full browser sign-in otherwise.
+        expired, and signs in again if there is no token or the refresh token
+        is rejected.
+
+        Raises:
+            SignInError: If a new sign-in is needed but sign_in_when_needed is
+                False, or if the sign-in fails.
         """
         tokens = self.token_store.load()
         if not tokens:
-            return self.sign_in()
+            return self._sign_in_if_allowed("You are not signed in.")
         if tokens.get("expires_at", 0) > self.clock() + EXPIRY_MARGIN_SECONDS:
             return tokens["access_token"]
         refresh_token = tokens.get("refresh_token")
         if not refresh_token:
-            return self.sign_in()
-        return self.refresh(refresh_token)
+            return self._sign_in_if_allowed("Your sign-in has expired.")
+        try:
+            return self.refresh(refresh_token)
+        except ApiError as error:
+            if error.status_code not in REJECTED_REFRESH_STATUSES:
+                raise
+        self.sign_out()
+        return self._sign_in_if_allowed("Your sign-in has expired.")
 
-    def sign_in(self):
+    def sign_in(self, open_browser=None):
         """Run the browser sign-in flow, save the tokens and return the access token.
 
+        Args:
+            open_browser: Called with the sign-in URL instead of the
+                authenticator's own open_browser, for example to also show the
+                link on a web page.
+
         Raises:
-            SignInError: If the user cancels or the response is not valid.
+            SignInError: If the user cancels, sign-in times out, or the
+                response is not valid.
         """
         verifier, challenge = make_pkce_pair()
         state = secrets.token_urlsafe(32)
         authorization_url = build_authorization_url(challenge, state)
 
-        callback_params = wait_for_callback(authorization_url, self.open_browser)
+        callback_params = wait_for_callback(
+            authorization_url, open_browser or self.open_browser
+        )
         code = authorization_code_from_callback(callback_params, state)
 
         tokens = self._request_tokens({
@@ -134,6 +173,12 @@ class Authenticator:
     def sign_out(self):
         """Forget the saved tokens."""
         self.token_store.clear()
+
+    def _sign_in_if_allowed(self, reason):
+        """Start a browser sign-in, or raise SignInError if that is not allowed."""
+        if not self.sign_in_when_needed:
+            raise SignInError(f"{reason} Sign in with AWS Builder ID to continue.")
+        return self.sign_in()
 
     def _request_tokens(self, form_values):
         """POST form values to the token endpoint and return the JSON reply."""
@@ -211,17 +256,45 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
         """Silence the default request logging."""
 
 
-def wait_for_callback(authorization_url, open_browser):
+def wait_for_callback(authorization_url, open_browser, port=CALLBACK_PORT,
+                      timeout_seconds=SIGN_IN_TIMEOUT_SECONDS):
     """Open the sign-in page and wait for the browser to redirect back.
 
+    Args:
+        authorization_url: The sign-in page to open.
+        open_browser: Called with the URL to show it to the user.
+        port: Local port the sign-in redirect comes back to.
+        timeout_seconds: How long to wait before giving up.
+
     Returns:
-        The callback query parameters, or an empty dict if none arrived.
+        The callback query parameters.
+
+    Raises:
+        SignInError: If the port is busy or no callback arrives in time.
     """
-    server = http.server.HTTPServer((CALLBACK_HOST, CALLBACK_PORT), CallbackHandler)
+    try:
+        server = http.server.HTTPServer((CALLBACK_HOST, port), CallbackHandler)
+    except OSError as error:
+        raise SignInError(
+            f"Could not listen for the sign-in reply on port {port} ({error}). "
+            "Is another sign-in already waiting? Finish or close it and try again."
+        ) from error
+
     server.callback_params = {}
+    deadline = time.monotonic() + timeout_seconds
     try:
         open_browser(authorization_url)
-        server.handle_request()
+        # Keep serving until the real callback arrives, since the browser may
+        # also ask for other paths such as /favicon.ico.
+        while not server.callback_params:
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                raise SignInError(
+                    f"Sign-in timed out after {timeout_seconds} seconds. "
+                    "Please try again."
+                )
+            server.timeout = remaining_seconds
+            server.handle_request()
     finally:
         server.server_close()
     return server.callback_params

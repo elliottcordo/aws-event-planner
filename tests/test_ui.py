@@ -41,10 +41,20 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(events_ui.format_day("2026-12-02"), "Wed 2 Dec")
         self.assertEqual(events_ui.format_day(None), "Date not set")
 
-    def test_session_rows_include_schedule_status(self):
-        """Rows carry display columns and the session's schedule status."""
-        rows = events_ui.session_rows(sample_sessions()[:1], {"s1": "Favorite"})
-        self.assertEqual(rows[0]["On schedule"], "Favorite")
+    def test_schedule_icons(self):
+        """Reserved gets a check, favorite a heart, and both get both."""
+        schedule = {"reserved": ["r", "both"], "favorites": ["f", "both"]}
+        self.assertEqual(events_ui.schedule_icons(schedule), {
+            "r": events_ui.RESERVED_ICON,
+            "f": events_ui.FAVORITE_ICON,
+            "both": f"{events_ui.RESERVED_ICON} {events_ui.FAVORITE_ICON}",
+        })
+
+    def test_session_rows_include_schedule_icons(self):
+        """Rows carry display columns and the session's schedule icons."""
+        icons = {"s1": events_ui.FAVORITE_ICON}
+        rows = events_ui.session_rows(sample_sessions()[:1], icons)
+        self.assertEqual(rows[0]["Mine"], events_ui.FAVORITE_ICON)
         self.assertEqual(rows[0]["Code"], "SVS301")
         self.assertEqual(rows[0]["When"], "Tue 1 Dec 10:00")
         self.assertEqual(rows[0]["Abstract"], "Lambda and SQS")
@@ -78,12 +88,17 @@ class AppTests(unittest.TestCase):
         SessionVectorStore.build(catalog, embeddings).save(index_path)
 
         schedule = {"reserved": ["s3"], "favorites": ["s1"], "personalTime": []}
+        self.get_schedule = mock.patch(
+            "aws_events.EventsClient.get_schedule", return_value=schedule
+        ).start()
+        self.addCleanup(mock.patch.stopall)
+        self.signed_in = mock.patch(
+            "aws_events.Authenticator.has_saved_sign_in", return_value=True
+        ).start()
         patches = [
             mock.patch("aws_events.default_catalog_path", lambda _: catalog_path),
             mock.patch("aws_events.default_index_path", lambda _: index_path),
             mock.patch("aws_events.FastEmbedEmbeddings", lambda: embeddings),
-            mock.patch("aws_events.EventsClient.get_schedule",
-                       return_value=schedule),
         ]
         for patch in patches:
             patch.start()
@@ -100,6 +115,31 @@ class AppTests(unittest.TestCase):
         schedule_text = " ".join(headings)
         self.assertIn("SVS301 Serverless patterns", schedule_text)
         self.assertIn("Reserved", schedule_text)
+
+    def test_grid_shows_icons_and_legend(self):
+        """Scheduled sessions get icons in the grid, explained by a legend."""
+        app = AppTest.from_file(APP_PATH, default_timeout=30).run()
+
+        mine = dict(zip(app.dataframe[0].value["Code"], app.dataframe[0].value["Mine"]))
+        self.assertEqual(mine["SVS301"], events_ui.FAVORITE_ICON)
+        self.assertEqual(mine["SVS402"], events_ui.RESERVED_ICON)
+        self.assertEqual(mine["AIM201"], "")
+        captions = [element.value for element in app.caption]
+        self.assertIn(events_ui.LEGEND, captions)
+
+    def test_signed_out_shows_sign_in_and_never_calls_api(self):
+        """Signed out: a Sign in button, no schedule request, favorites disabled."""
+        self.signed_in.return_value = False
+
+        app = AppTest.from_file(APP_PATH, default_timeout=30).run()
+
+        self.assertFalse(app.exception)
+        self.get_schedule.assert_not_called()
+        labels = [button.label for button in app.button]
+        self.assertIn("Sign in", labels)
+        add_button = next(b for b in app.button if b.label.startswith("Add "))
+        self.assertTrue(add_button.disabled)
+        self.assertEqual(len(app.dataframe[0].value), 3)
 
     def test_filters_and_search_narrow_the_grid(self):
         """Venue and date dropdowns and the search box filter the grid."""

@@ -42,8 +42,13 @@ python3 events_cli.py login
 This opens AWS Builder ID sign-in in your browser. After you sign in, the
 browser redirects to `http://localhost:8484/callback`, so port 8484 must be free.
 Tokens are saved to `~/.aws-events-token.json` (readable only by you) and are
-refreshed automatically. You don't need to run `login` first: any command that
+refreshed automatically. If the saved sign-in has expired for good, a new
+browser sign-in starts. You don't need to run `login` first: any command that
 needs sign-in starts it for you.
+
+Sign-in gives up after 5 minutes if you don't finish it in the browser. If port
+8484 is busy (usually because another sign-in is still waiting), you get an
+error saying so. Finish or close the other sign-in and try again.
 
 To forget the saved sign-in:
 
@@ -259,18 +264,26 @@ This opens the planner in your browser at `http://localhost:8501`.
 - **Left: Find sessions.** Filter by venue and date. With the search box empty,
   the grid lists every matching session in time order. Type a query to see the
   top 10 hybrid-search matches within the filters instead. Tick rows in the grid
-  and click **Add selected to favorites** (up to 10 at a time). The
-  **On schedule** column shows which sessions are already reserved or favorites.
+  and click **Add selected to favorites** (up to 10 at a time). The **Mine**
+  column marks sessions already on your schedule: ✅ reserved, ❤️ favorite. A
+  legend under the grid repeats this.
   Each row shows the start of the session's abstract. To read a whole abstract,
   drag the Abstract column wider or open the grid full screen (the icon at its
   top right). Venue, type and level are a scroll to the right.
 - **Right: My schedule.** Your reserved and favorite sessions, grouped by day in
   time order. It updates after you add favorites. Click **Refresh** to pick up
-  changes made elsewhere, such as on the event website.
+  changes made elsewhere, such as on the event website, and **Sign out** to
+  forget your sign-in.
 
-The first time the app loads your schedule, it opens AWS Builder ID sign-in in
-your browser if you aren't already signed in (see [Sign in](#sign-in)). The UI
-and the CLI share the same saved sign-in and the same `data/` files.
+**Signing in.** The web UI never starts a sign-in by itself. If you aren't
+signed in, or your saved sign-in has expired, the schedule panel shows a
+**Sign in** button, and **Add selected to favorites** is disabled. Search and
+filters work without signing in. Clicking **Sign in** opens AWS Builder ID
+sign-in in a new tab and shows a link on the page in case the tab didn't open.
+Finish within 5 minutes. For events that require sign-in to view sessions, such
+as re:Invent, sign in before using **Download data and rebuild index**.
+
+The UI and the CLI share the same saved sign-in and the same `data/` files.
 
 ## Using the package from Python
 

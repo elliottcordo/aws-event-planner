@@ -1,8 +1,12 @@
 """Tests for aws_events.auth."""
 
+import socket
 import tempfile
+import threading
 import unittest
+import urllib.error
 import urllib.parse
+import urllib.request
 from pathlib import Path
 from unittest import mock
 
@@ -12,8 +16,9 @@ from aws_events.auth import (
     authorization_code_from_callback,
     build_authorization_url,
     make_pkce_pair,
+    wait_for_callback,
 )
-from aws_events.errors import SignInError
+from aws_events.errors import ApiError, SignInError
 from tests.fakes import FakeTransport, MemoryTokenStore
 
 
@@ -92,6 +97,60 @@ class AuthenticatorTests(unittest.TestCase):
         self.assertEqual(form["code"], "the-code")
         self.assertEqual(store.tokens["access_token"], "signed-in")
 
+    def test_rejected_refresh_token_falls_back_to_sign_in(self):
+        """An invalid_grant reply clears the tokens and starts a new sign-in."""
+        store = MemoryTokenStore({
+            "access_token": "old", "refresh_token": "dead", "expires_at": NOW - 10,
+        })
+        transport = FakeTransport(ApiError("invalid_grant", 400))
+        authenticator = Authenticator(store, transport, clock=fixed_clock)
+
+        with mock.patch.object(authenticator, "sign_in",
+                               return_value="fresh") as sign_in:
+            self.assertEqual(authenticator.get_access_token(), "fresh")
+        sign_in.assert_called_once()
+        self.assertIsNone(store.tokens)
+
+    def test_refresh_server_error_is_raised(self):
+        """A server error during refresh is not treated as an expired sign-in."""
+        store = MemoryTokenStore({
+            "access_token": "old", "refresh_token": "ok", "expires_at": NOW - 10,
+        })
+        transport = FakeTransport(ApiError("unavailable", 503))
+        authenticator = Authenticator(store, transport, clock=fixed_clock)
+
+        with self.assertRaises(ApiError):
+            authenticator.get_access_token()
+        self.assertIsNotNone(store.tokens)
+
+    def test_no_implicit_sign_in_when_disabled(self):
+        """With sign_in_when_needed=False, a missing token raises, no browser."""
+        authenticator = Authenticator(
+            MemoryTokenStore(), FakeTransport(), sign_in_when_needed=False
+        )
+        with mock.patch.object(authenticator, "sign_in") as sign_in:
+            with self.assertRaisesRegex(SignInError, "not signed in"):
+                authenticator.get_access_token()
+        sign_in.assert_not_called()
+
+    def test_expired_sign_in_message_when_disabled(self):
+        """A rejected refresh with sign-in disabled says the sign-in expired."""
+        store = MemoryTokenStore({
+            "access_token": "old", "refresh_token": "dead", "expires_at": NOW - 10,
+        })
+        authenticator = Authenticator(
+            store, FakeTransport(ApiError("invalid_grant", 400)),
+            clock=fixed_clock, sign_in_when_needed=False,
+        )
+        with self.assertRaisesRegex(SignInError, "expired"):
+            authenticator.get_access_token()
+
+    def test_has_saved_sign_in(self):
+        """has_saved_sign_in reflects whether tokens are stored."""
+        self.assertFalse(Authenticator(MemoryTokenStore(), None).has_saved_sign_in())
+        store = MemoryTokenStore({"access_token": "x"})
+        self.assertTrue(Authenticator(store, None).has_saved_sign_in())
+
     def test_sign_out_clears_tokens(self):
         """sign_out removes the saved tokens."""
         store = MemoryTokenStore({"access_token": "x"})
@@ -134,6 +193,50 @@ class SignInHelperTests(unittest.TestCase):
             with self.subTest(params=params):
                 with self.assertRaises(SignInError):
                     authorization_code_from_callback(params, "s")
+
+
+def free_port():
+    """Return a local TCP port that is currently free."""
+    with socket.socket() as probe:
+        probe.bind(("localhost", 0))
+        return probe.getsockname()[1]
+
+
+class WaitForCallbackTests(unittest.TestCase):
+    """The local server that receives the sign-in redirect."""
+
+    def test_returns_callback_params(self):
+        """The redirect's query parameters are returned, ignoring other paths."""
+        port = free_port()
+
+        def fake_browser(_url):
+            def visit():
+                base = f"http://localhost:{port}"
+                try:
+                    urllib.request.urlopen(f"{base}/favicon.ico")
+                except urllib.error.HTTPError as not_found:
+                    not_found.close()
+                urllib.request.urlopen(f"{base}/callback?code=abc&state=s").read()
+            threading.Thread(target=visit).start()
+
+        params = wait_for_callback("unused", fake_browser, port=port,
+                                   timeout_seconds=5)
+        self.assertEqual(params, {"code": ["abc"], "state": ["s"]})
+
+    def test_times_out(self):
+        """No redirect within the timeout raises SignInError."""
+        with self.assertRaisesRegex(SignInError, "timed out"):
+            wait_for_callback("unused", lambda _url: None, port=free_port(),
+                              timeout_seconds=0.2)
+
+    def test_busy_port_gives_clear_error(self):
+        """A port already in use raises SignInError, not OSError."""
+        with socket.socket() as blocker:
+            blocker.bind(("localhost", 0))
+            blocker.listen()
+            port = blocker.getsockname()[1]
+            with self.assertRaisesRegex(SignInError, f"port {port}"):
+                wait_for_callback("unused", lambda _url: None, port=port)
 
 
 if __name__ == "__main__":

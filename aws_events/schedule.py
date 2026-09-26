@@ -16,18 +16,6 @@ def status_label(reserved, favorite):
     return ""
 
 
-def schedule_labels(schedule):
-    """Return a dict mapping each scheduled session ID to its status label."""
-    reserved = set(schedule["reserved"])
-    favorites = set(schedule["favorites"])
-    labels = {}
-    for session_id in reserved | favorites:
-        labels[session_id] = status_label(
-            session_id in reserved, session_id in favorites
-        )
-    return labels
-
-
 @dataclass
 class ScheduledSession:
     """A session on the attendee's schedule, and whether it is reserved or favorited."""

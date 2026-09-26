@@ -3,7 +3,7 @@
 import unittest
 
 from aws_events.catalog import SessionCatalog
-from aws_events.schedule import group_schedule_by_date, schedule_labels
+from aws_events.schedule import group_schedule_by_date
 from tests.fakes import make_session
 
 
@@ -52,7 +52,6 @@ class ScheduleTests(unittest.TestCase):
             "c": "Reserved",
             "missing": "Favorite",
         })
-        self.assertEqual(schedule_labels(self.schedule), labels)
 
     def test_without_catalog_sessions_are_shown_by_id(self):
         """With no local catalog, every session is listed by ID, undated."""

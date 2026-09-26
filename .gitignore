@@ -1,0 +1,9 @@
+# Virtual environment
+venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Downloaded session catalogs and search indexes
+data/
