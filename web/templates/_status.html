@@ -1,0 +1,13 @@
+{# Schedule status as two fixed slots, reserved then favorite, so the icons
+   line up down a column whichever ones a session has. The words are kept for
+   screen readers and as hover text. #}
+{% macro status(reserved, favorite) %}
+<span class="status">
+  <span class="status-slot"{% if reserved %} title="Reserved"{% endif %}>
+    {%- if reserved %}{{ RESERVED_ICON }}<span class="visually-hidden">Reserved</span>{% endif -%}
+  </span>
+  <span class="status-slot"{% if favorite %} title="Favorite"{% endif %}>
+    {%- if favorite %}{{ FAVORITE_ICON }}<span class="visually-hidden">Favorite</span>{% endif -%}
+  </span>
+</span>
+{% endmacro %}

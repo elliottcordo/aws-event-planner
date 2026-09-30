@@ -1,4 +1,4 @@
-# AWS Events App
+# AWS Event AMP
 
 A small Python client for the [AWS Events API](https://api.awsevents.com/v1/openapi.json)
 attendee flow. Use it to browse events and sessions, manage your schedule
@@ -10,8 +10,8 @@ It has three parts:
 - **`aws_events/`**: a Python package with the API client, AWS Builder ID sign-in,
   and session search. Use it from your own code.
 - **`events_cli.py`**: a command-line interface on top of that package.
-- **`events_ui.py`**: a Streamlit web UI for searching sessions and building
-  your favorites list.
+- **`events_web.py`**: a web app (FastAPI + HTMX) for searching sessions and
+  building your favorites list, which can wear classic Winamp skins.
 
 ## Setup
 
@@ -109,15 +109,23 @@ python3 events_cli.py schedule reinvent2026
 python3 events_cli.py schedule reinvent2026 --details
 ```
 
-### Reservations
+### Booking (reservations)
+
+The API calls a booking a reservation. `book` and `unbook` are the same
+commands as `reserve` and `cancel`; use whichever you prefer.
 
 ```bash
-# Reserve one to ten sessions at once
-python3 events_cli.py reserve reinvent2026 1780441461150001GGoc 1780441461234001G5fg
+# Book one to ten sessions at once
+python3 events_cli.py book reinvent2026 1780441461150001GGoc 1780441461234001G5fg
 
-# Cancel one reservation
-python3 events_cli.py cancel reinvent2026 1780441461150001GGoc
+# Cancel one booking
+python3 events_cli.py unbook reinvent2026 1780441461150001GGoc
 ```
+
+If the event hasn't opened booking yet (the API answers HTTP 409, "operation
+disabled"), `book` stops with "This feature is not yet enabled". The web app
+shows the same message. Other operations the API has switched off behave the
+same way.
 
 Some sessions in a `reserve` call can fail while others succeed, so always check
 the `failed` list in the output. A session you already hold is also reported
@@ -249,41 +257,102 @@ wherever you run the command from. `data/` is in `.gitignore`. To keep them
 somewhere else, pass `--catalog PATH` and `--index PATH` to any of the three
 commands.
 
-## Using the web UI
+## Using the web app
 
 ```bash
-streamlit run events_ui.py
+python3 events_web.py
 ```
 
-This opens the planner in your browser at `http://localhost:8501`.
+Then open <http://127.0.0.1:8000>. Use `--port` to pick another port. The app
+listens only on your own machine, because it acts with your AWS Builder ID
+sign-in.
 
-- **Top:** choose the event (default `reinvent2026`). **Download data and
-  rebuild index** runs `download-sessions` and `build-index` for you. Use it the
-  first time, and whenever you want the latest catalog. For re:Invent it takes
-  about 3 minutes.
-- **Left: Find sessions.** Filter by venue and date. With the search box empty,
-  the grid lists every matching session in time order. Type a query to see the
-  top 10 hybrid-search matches within the filters instead. Tick rows in the grid
-  and click **Add selected to favorites** (up to 10 at a time). The **Mine**
-  column marks sessions already on your schedule: ✅ reserved, ❤️ favorite. A
-  legend under the grid repeats this.
-  Each row shows the start of the session's abstract. To read a whole abstract,
-  drag the Abstract column wider or open the grid full screen (the icon at its
-  top right). Venue, type and level are a scroll to the right.
-- **Right: My schedule.** Your reserved and favorite sessions, grouped by day in
-  time order. It updates after you add favorites. Click **Refresh** to pick up
-  changes made elsewhere, such as on the event website, and **Sign out** to
-  forget your sign-in.
+- **Top:** choose the event (default `reinvent2026`) and a skin.
+  **Download data and rebuild index** runs `download-sessions` and
+  `build-index` for you. Use it the first time, and whenever you want the latest
+  catalog. For re:Invent it takes about 3 minutes, and progress shows under the
+  button.
+- **Sessions (left):** filter by venue and date. With the search box empty, the
+  table lists every matching session in time order, 100 at a time (**Show
+  more** loads the next 100). Type a query to see the top 10 hybrid-search
+  matches within the filters. **Hover over an abstract to read all of it.**
+  Tick rows, then click **Add selected to favorites** or **Book selected** (up
+  to 10 at a time; booking asks you to confirm). The first column marks
+  sessions already on your schedule: ✅ booked, ❤️ favorite, always in that
+  order so the icons line up.
+- **My schedule (right):** your booked and favorite sessions, grouped by day in
+  time order. Tick sessions, then click **Remove selected from favorites** or
+  **Book selected**. Both panels update after every change. **Refresh** picks up
+  changes made elsewhere, such as on the event website, and **Sign out** forgets
+  your sign-in.
 
-**Signing in.** The web UI never starts a sign-in by itself. If you aren't
-signed in, or your saved sign-in has expired, the schedule panel shows a
-**Sign in** button, and **Add selected to favorites** is disabled. Search and
-filters work without signing in. Clicking **Sign in** opens AWS Builder ID
-sign-in in a new tab and shows a link on the page in case the tab didn't open.
-Finish within 5 minutes. For events that require sign-in to view sessions, such
-as re:Invent, sign in before using **Download data and rebuild index**.
+  If the API refuses a session, the message says why in plain words and names
+  the session by its code. For example, "ANT417-R clashes with DAT317 on your
+  schedule", or that a session is full, has already started, or isn't open for
+  booking. The rest of the selection still goes through.
 
-The UI and the CLI share the same saved sign-in and the same `data/` files.
+**Signing in.** The web app never starts a sign-in by itself. If you aren't
+signed in, or your saved sign-in has expired, My schedule shows a **Sign in**
+button, and **Add selected to favorites** is disabled. Search and filters work
+without signing in. **Sign in** opens AWS Builder ID sign-in in a new tab and
+shows a link on the page in case the tab didn't open. Finish within 5 minutes.
+For events that require sign-in to view sessions, such as re:Invent, sign in
+before using **Download data and rebuild index**.
+
+The web app and the CLI share the same saved sign-in and the same `data/` files.
+
+### Winamp skins
+
+Pick a skin from the **Skin** menu. Your choice is remembered in this browser.
+The page is then drawn with the skin's own artwork:
+
+- The header becomes Winamp's main window, with your event scrolling across it
+  in the skin's bitmap font. Its buttons work:
+  - ⏮ and ⏭ move back and forward a day.
+  - ▶, ⏸ and ⏹ clear all filters and the search.
+  - ⏏ downloads data and rebuilds the index, after asking.
+  - Shuffle and Repeat refresh the session list.
+- The Sessions and My schedule panels are framed like Winamp's playlist window,
+  in the colors and font from the skin's `pledit.txt`. If a skin's text colors
+  are hard to read (for example dark red on black), a more readable color from
+  the skin is used for body text.
+- The page behind the windows takes the skin's primary color: the most common
+  color in its main window, ignoring the black display areas most skins have.
+  The page title and labels switch between light and dark text to stay readable.
+
+The menu offers Winamp's default skin plus the 10 most-liked skins from the
+Winamp 2 era (1997–2003) on the [Winamp Skin Museum](https://skins.webamp.org/),
+ranked by likes on the Museum's posts. Choose **No skin** for a plain, modern
+look.
+
+Skins are downloaded from the Museum the first time you pick them and cached in
+`data/skins/`. The skin files are not part of this repository.
+
+**Adding a skin.** Add an entry to `web/skins.json` and restart the app:
+
+```json
+{
+  "id": "my-skin",
+  "name": "My Skin",
+  "year": 2001,
+  "url": "https://r2.webampskins.org/skins/<md5>.wsz",
+  "museum_url": "https://skins.webamp.org/skin/<md5>/"
+}
+```
+
+- `id` (used in URLs and cookies) and `name` are required, plus either `url` or
+  `file`.
+- `url` is where to download the `.wsz` from. For a Museum skin, the `<md5>` is
+  in its Museum page's address.
+- Use `"file": "skins/my-skin.wsz"` instead of `url` for a `.wsz` on disk,
+  relative to the project root.
+- `year`, `likes` and `museum_url` are optional. The year is shown in the menu.
+
+Only classic (Winamp 2) `.wsz` skins work; modern Winamp 3/5 `.wal` skins don't.
+A skin missing any of the files the page uses (`main.bmp`, `titlebar.bmp`,
+`cbuttons.bmp`, `text.bmp`, `pledit.bmp`, `pledit.txt`) borrows them from the
+default skin, as Winamp does. `default_skin` at the top of the file sets the
+skin new visitors see.
 
 ## Using the package from Python
 
@@ -323,10 +392,19 @@ aws_events/
     search.py        SessionSearch: keyword, semantic and hybrid search, with filters
     schedule.py      Group the attendee's schedule by day for display
     errors.py        EventsError, ApiError, SignInError
+web/
+    app.py           FastAPI routes: pages and HTMX partials
+    services.py      Shared state: API client, cached search indexes, background jobs
+    skins.py         Winamp skin list (skins.json), download cache and .wsz reader
+    jobs.py          Background jobs for sign-in and rebuilding the index
+    views.py         Formatting for the templates
+    skins.json       The skins offered in the Skin menu
+    templates/       Jinja2 templates (index.html and the HTMX partials)
+    static/          app.css, skin.js (draws the skin), htmx.min.js (vendored HTMX 2.0.11)
 events_cli.py        Command-line interface
-events_ui.py         Streamlit web UI
+events_web.py        Starts the web app
 tests/               Unit tests (no network or browser needed)
-data/                Downloaded catalogs and search indexes (created on first use)
+data/                Downloaded catalogs, search indexes and skins (created on first use)
 ```
 
 ## Running the tests

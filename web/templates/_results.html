@@ -1,0 +1,27 @@
+{# Each action button posts the ticked rows to its own URL. #}
+<form id="sessions-form" class="selection-form" hx-target="#sessions-message">
+  <input type="hidden" name="event_id" value="{{ event_id }}">
+  <p class="summary">{{ summary }} · hover an abstract to read all of it</p>
+  <div class="table-scroll">
+    <table class="sessions">
+      <thead>
+        <tr>
+          <th><span class="visually-hidden">Select</span></th>
+          <th><span class="visually-hidden">On your schedule</span></th>
+          <th>When</th><th>Session</th><th>Abstract</th>
+          <th>Venue</th><th>Type</th><th>Level</th>
+        </tr>
+      </thead>
+      <tbody>{% include "_result_rows.html" %}</tbody>
+    </table>
+  </div>
+  <p class="legend">{{ legend }}</p>
+  <div class="actions" data-signed-in="{{ 'yes' if signed_in else 'no' }}">
+    <button type="button" class="primary selection-action" disabled hx-post="/favorites"
+      data-max="{{ max_selection }}" data-label="Add {count} selected to favorites">Add selected to favorites</button>
+    <button type="button" class="primary selection-action" disabled hx-post="/reservations"
+      hx-confirm="Book the selected sessions?"
+      data-max="{{ max_selection }}" data-label="Book {count} selected">Book selected</button>
+    {% if not signed_in %}<span class="hint">Sign in (in My schedule) to add favorites or book.</span>{% endif %}
+  </div>
+</form>

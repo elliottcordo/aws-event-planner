@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- A Z-shaped lightning bolt in the spirit of Winamp's classic logo. -->
+  <defs>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF36B"/>
+      <stop offset="0.55" stop-color="#FFB000"/>
+      <stop offset="1" stop-color="#FF5A00"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#1c1c24"/>
+  <path d="M7 4.5 H25.5 L15.5 14.5 H22.5 L7.5 28 L13 17.5 H6.5 L14.5 9 H7 Z"
+        fill="url(#bolt)" stroke="#2a1300" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

@@ -28,7 +28,12 @@ from aws_events.catalog import (
     session_start_time,
 )
 from aws_events.client import EventsClient, PersonalTime
-from aws_events.errors import ApiError, EventsError, SignInError
+from aws_events.errors import (
+    ApiError,
+    EventsError,
+    FeatureDisabledError,
+    SignInError,
+)
 from aws_events.search import SEARCH_MODES, SearchResult, SessionSearch
 from aws_events.transport import HttpTransport
 from aws_events.vector_store import (
@@ -44,6 +49,7 @@ __all__ = [
     "EventsClient",
     "EventsError",
     "FastEmbedEmbeddings",
+    "FeatureDisabledError",
     "HttpTransport",
     "PersonalTime",
     "SearchResult",

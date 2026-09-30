@@ -1,0 +1,25 @@
+{% from "_status.html" import status %}
+{% for row in rows %}
+<tr class="{{ 'scheduled' if row.reserved or row.favorite }}">
+  <td><input type="checkbox" name="session_ids" value="{{ row.id }}" aria-label="Select {{ row.title }}"></td>
+  <td class="icons">{{ status(row.reserved, row.favorite) }}</td>
+  <td class="when">{{ row.when }}</td>
+  <td class="session">
+    {% if row.code %}<span class="code">{{ row.code }}</span>{% endif %}
+    <span class="title">{{ row.title }}</span>
+  </td>
+  <td class="abstract" title="{{ row.abstract }}"><div class="clamp">{{ row.abstract }}</div></td>
+  <td>{{ row.venue }}</td>
+  <td>{{ row.type }}</td>
+  <td class="level" title="{{ row.level_full }}">{{ row.level }}</td>
+</tr>
+{% else %}
+<tr><td colspan="8" class="empty">No matching sessions.</td></tr>
+{% endfor %}
+{% if next_offset %}
+<tr class="more">
+  <td colspan="8">
+    <button type="button" hx-get="{{ more_url }}" hx-target="closest tr" hx-swap="outerHTML">Show more</button>
+  </td>
+</tr>
+{% endif %}

@@ -11,9 +11,11 @@ It uses only the Python standard library and the following third party dependenc
 * boto3
 * pylint
 * langchain-core, fastembed, rank-bm25 (session search; see `requirements.txt`)
-* streamlit (web UI)
+* fastapi, uvicorn, jinja2, python-multipart (web UI); httpx (tests only)
 
 Do not add additonal third-party dependencies without asking first.
+The web UI's only JavaScript library is HTMX 2.0.11, vendored in `web/static/htmx.min.js`;
+don't add a Node toolchain or build step.
 
 ## Environment
 
@@ -76,5 +78,7 @@ def fetch_session(event_id, session_id):
   if pylint is installed).
 - Run the tests: `venv/bin/python -m unittest discover -s tests -t .`
 - Make sure the script still runs: `venv/bin/python events_cli.py --help`.
-- UI changes: keep `tests/test_ui.py` (Streamlit `AppTest`) passing.
+- Web UI changes: keep `tests/test_web_app.py` and `tests/test_skins.py` passing, and
+  check the page in a browser (`venv/bin/python events_web.py`) with a few skins and
+  with "No skin".
 - Keep `README.md` in step with CLI changes.

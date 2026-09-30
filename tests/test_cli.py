@@ -9,7 +9,7 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 
 import events_cli
 from aws_events.client import EventsClient
-from aws_events.errors import EventsError
+from aws_events.errors import ApiError, EventsError
 from tests.fakes import FakeAuthenticator, FakeTransport, make_session
 
 
@@ -54,6 +54,17 @@ class CommandTests(unittest.TestCase):
                                 {"session": {"sessionId": "s1"}})
         self.assertEqual(result["reserved"], [{"sessionId": "s1"}])
         self.assertEqual(len(transport.requests), 2)
+
+    def test_book_and_unbook_aliases(self):
+        """"book" and "unbook" run the reserve and cancel commands."""
+        _, transport = run(["book", "e1", "s1"],
+                           {"result": {"successful": ["s1"], "failed": []}})
+        self.assertEqual(transport.requests[0]["method"], "POST")
+        self.assertTrue(transport.requests[0]["url"].endswith("/reservations"))
+
+        result, transport = run(["unbook", "e1", "s1"])
+        self.assertEqual(result, "Reservation cancelled.")
+        self.assertEqual(transport.requests[0]["method"], "DELETE")
 
     def test_cancel_returns_message(self):
         """cancel sends DELETE and returns a confirmation."""
@@ -110,6 +121,16 @@ class SearchCommandTests(unittest.TestCase):
 
 class MainTests(unittest.TestCase):
     """Exit codes and error printing."""
+
+    def test_disabled_feature_message(self):
+        """A disabled operation prints the friendly message and exits with 1."""
+        disabled = ApiError("This operation is currently disabled", 409)
+        with mock.patch("aws_events.HttpTransport.request", side_effect=disabled), \
+                mock.patch("aws_events.Authenticator.get_access_token",
+                           return_value="token"), \
+                mock.patch("sys.stderr") as stderr:
+            self.assertEqual(events_cli.main(["book", "e1", "s1"]), 1)
+        stderr.write.assert_any_call("Error: This feature is not yet enabled")
 
     def test_error_returns_exit_code_one(self):
         """Errors are printed to stderr and give exit code 1."""

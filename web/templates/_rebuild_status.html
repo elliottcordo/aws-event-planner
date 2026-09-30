@@ -1,0 +1,8 @@
+{% if job and job.is_running() %}
+<p class="message" hx-get="/rebuild/status?event_id={{ event_id }}" hx-trigger="every 2s"
+  hx-target="#rebuild-status">{{ job.message }}</p>
+{% elif job and job.status == "failed" %}
+<p class="message error">Could not update session data: {{ job.message }}</p>
+{% elif job %}
+<p class="message success">{{ job.message }} Reloading...</p>
+{% endif %}

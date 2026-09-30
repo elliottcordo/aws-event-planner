@@ -3,7 +3,10 @@
 import urllib.parse
 from dataclasses import dataclass
 
-from aws_events.errors import ApiError
+from aws_events.errors import ApiError, FeatureDisabledError
+
+# The API answers 409 only when an operation has been switched off.
+FEATURE_DISABLED_STATUS = 409
 
 API_BASE_URL = "https://api.awsevents.com/v1"
 
@@ -244,14 +247,24 @@ class EventsClient:
         return {"Authorization": f"Bearer {access_token}"}
 
     def _request(self, method, path, params, body, headers):
-        """Send one request through the transport."""
-        return self.transport.request(
-            method,
-            self.base_url + path,
-            params=params,
-            json_body=body,
-            headers=headers,
-        )
+        """Send one request through the transport.
+
+        Raises:
+            FeatureDisabledError: If the API has switched the operation off.
+            ApiError: For any other error response.
+        """
+        try:
+            return self.transport.request(
+                method,
+                self.base_url + path,
+                params=params,
+                json_body=body,
+                headers=headers,
+            )
+        except ApiError as error:
+            if error.status_code == FEATURE_DISABLED_STATUS:
+                raise FeatureDisabledError(error.message) from error
+            raise
 
 
 def build_path(*segments):

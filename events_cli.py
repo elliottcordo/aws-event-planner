@@ -7,7 +7,7 @@ Usage examples:
     python3 events_cli.py sessions reinvent2026 --no-abstracts
     python3 events_cli.py schedule reinvent2026
     python3 events_cli.py schedule reinvent2026 --details
-    python3 events_cli.py reserve reinvent2026 SESSION_ID [SESSION_ID ...]
+    python3 events_cli.py book reinvent2026 SESSION_ID [SESSION_ID ...]
     python3 events_cli.py add-personal-time reinvent2026 --title Lunch \\
         --description "Team lunch" --start 2026-12-02T19:00:00 \\
         --end 2026-12-02T20:00:00
@@ -89,11 +89,17 @@ def build_parser():
     schedule.add_argument("--locale",
                           help="Language for session details, for example en-US")
 
-    reserve = commands.add_parser("reserve", help="Reserve one to ten sessions")
+    # "book" is the everyday word; the API calls it a reservation. The
+    # defaults make args.command the same whichever name is typed.
+    reserve = commands.add_parser("reserve", aliases=["book"],
+                                  help="Book (reserve) one to ten sessions")
+    reserve.set_defaults(command="reserve")
     add_event_id(reserve)
     reserve.add_argument("session_ids", nargs="+", metavar="session_id")
 
-    cancel = commands.add_parser("cancel", help="Cancel a reservation")
+    cancel = commands.add_parser("cancel", aliases=["unbook"],
+                                 help="Cancel a booking (reservation)")
+    cancel.set_defaults(command="cancel")
     add_event_id(cancel)
     cancel.add_argument("session_id")
 

@@ -1,0 +1,91 @@
+{
+  "default_skin": "base",
+  "skins": [
+    {
+      "id": "base",
+      "name": "Winamp Classic (base 2.91)",
+      "url": "https://r2.webampskins.org/skins/5e4f10275dcb1fb211d4a8b4f1bda236.wsz",
+      "museum_url": "https://skins.webamp.org/skin/5e4f10275dcb1fb211d4a8b4f1bda236/"
+    },
+    {
+      "id": "garfield",
+      "name": "Garfield Amp",
+      "year": 1998,
+      "likes": 2923,
+      "url": "https://r2.webampskins.org/skins/47597ab8e5ffcd39686d455c10c3b436.wsz",
+      "museum_url": "https://skins.webamp.org/skin/47597ab8e5ffcd39686d455c10c3b436/"
+    },
+    {
+      "id": "zelda-amp-3",
+      "name": "Zelda Amp 3",
+      "year": 2002,
+      "likes": 2060,
+      "url": "https://r2.webampskins.org/skins/d770a634cc1ab252cfb16c64f4f5f616.wsz",
+      "museum_url": "https://skins.webamp.org/skin/d770a634cc1ab252cfb16c64f4f5f616/"
+    },
+    {
+      "id": "deus-ex-amp",
+      "name": "Deus Ex Amp",
+      "year": 2002,
+      "likes": 1527,
+      "url": "https://r2.webampskins.org/skins/971c1afc05b56f5160903d0748b73239.wsz",
+      "museum_url": "https://skins.webamp.org/skin/971c1afc05b56f5160903d0748b73239/"
+    },
+    {
+      "id": "mr-bean-amp-2",
+      "name": "Mr. Bean Amp 2",
+      "year": 2000,
+      "likes": 642,
+      "url": "https://r2.webampskins.org/skins/52fb162d1dcd616659eef2fbad46b238.wsz",
+      "museum_url": "https://skins.webamp.org/skin/52fb162d1dcd616659eef2fbad46b238/"
+    },
+    {
+      "id": "microchip-2",
+      "name": "Microchip 2",
+      "year": 2000,
+      "likes": 628,
+      "url": "https://r2.webampskins.org/skins/03a967351bc69b83a3c063782997d434.wsz",
+      "museum_url": "https://skins.webamp.org/skin/03a967351bc69b83a3c063782997d434/"
+    },
+    {
+      "id": "george",
+      "name": "George Skin",
+      "year": 2000,
+      "likes": 477,
+      "url": "https://r2.webampskins.org/skins/3e0a37f5fcd0e9dedc035eeb33932545.wsz",
+      "museum_url": "https://skins.webamp.org/skin/3e0a37f5fcd0e9dedc035eeb33932545/"
+    },
+    {
+      "id": "unreal",
+      "name": "Unreal",
+      "year": 1999,
+      "likes": 469,
+      "url": "https://r2.webampskins.org/skins/7b9df7892503371430aaf99ea7a172c0.wsz",
+      "museum_url": "https://skins.webamp.org/skin/7b9df7892503371430aaf99ea7a172c0/"
+    },
+    {
+      "id": "doritos-nachoamp",
+      "name": "Doritos NachoAmp",
+      "year": 2000,
+      "likes": 459,
+      "url": "https://r2.webampskins.org/skins/4b874c85014b42cf3d67cfab35e20109.wsz",
+      "museum_url": "https://skins.webamp.org/skin/4b874c85014b42cf3d67cfab35e20109/"
+    },
+    {
+      "id": "yufo",
+      "name": "Yufo 06",
+      "year": 2002,
+      "likes": 457,
+      "url": "https://r2.webampskins.org/skins/5ea2d974dad5507b83a6ddff7003a8ee.wsz",
+      "museum_url": "https://skins.webamp.org/skin/5ea2d974dad5507b83a6ddff7003a8ee/"
+    },
+    {
+      "id": "pip-boy-2000",
+      "name": "Fallout Pip-Boy 2000",
+      "year": 1999,
+      "likes": 454,
+      "url": "https://r2.webampskins.org/skins/80fb8e391fc925f297174a8fd9c5b6ad.wsz",
+      "museum_url": "https://skins.webamp.org/skin/80fb8e391fc925f297174a8fd9c5b6ad/"
+    }
+  ]
+}

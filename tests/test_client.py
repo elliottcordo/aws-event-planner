@@ -7,7 +7,7 @@ from aws_events.client import (
     PersonalTime,
     build_path,
 )
-from aws_events.errors import ApiError
+from aws_events.errors import ApiError, FeatureDisabledError
 from tests.fakes import FakeAuthenticator, FakeTransport
 
 
@@ -136,6 +136,18 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(ApiError):
             client.get_schedule("e1")
         self.assertEqual(len(transport.requests), 2)
+
+    def test_disabled_operation_gives_friendly_error(self):
+        """HTTP 409 (operation switched off) becomes FeatureDisabledError."""
+        client, _ = make_client(ApiError("This operation is currently disabled", 409))
+
+        with self.assertRaises(FeatureDisabledError) as caught:
+            client.reserve_sessions("e1", ["s1"])
+
+        self.assertEqual(str(caught.exception), "This feature is not yet enabled")
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(caught.exception.api_message,
+                         "This operation is currently disabled")
 
     def test_session_call_does_not_retry_other_errors(self):
         """Errors other than 401 are raised without signing in."""

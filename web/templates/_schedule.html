@@ -1,0 +1,42 @@
+{% from "_status.html" import status %}
+<div class="schedule-actions">
+  <button type="button" hx-get="/schedule?event_id={{ event_id }}" hx-target="#schedule">Refresh</button>
+  <button type="button" hx-post="/sign-out" hx-swap="none">Sign out</button>
+</div>
+{% if problem %}<p class="message error">{{ problem }}</p>{% endif %}
+{% if groups %}
+{# Each action button posts the ticked sessions to its own URL. #}
+<form id="schedule-form" class="selection-form" hx-target="#schedule-message">
+  <input type="hidden" name="event_id" value="{{ event_id }}">
+  <div class="schedule-scroll">
+  {% for day, entries in groups %}
+  <h3>{{ day }}</h3>
+  <ul class="schedule-list">
+    {% for entry in entries %}
+    <li>
+      <input type="checkbox" name="session_ids" value="{{ entry.session.sessionId }}"
+        aria-label="Select {{ entry.session.title }}">
+      {{ status(entry.reserved, entry.favorite) }}
+      <div class="entry" title="{{ entry.session.abstract or '' }}">
+        <span class="time">{{ entry.session.sessionTime.time if entry.session.sessionTime else '--:--' }}</span>
+        <span class="code">{{ entry.session.abbreviation or '' }}</span>
+        <span class="title">{{ entry.session.title }}</span>
+        {% if entry.session.venue %}<div class="meta">{{ entry.session.venue }}</div>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+  </div>
+  {# At the bottom, like the buttons under the session table. #}
+  <div class="actions" data-signed-in="yes">
+    <button type="button" class="primary selection-action" disabled hx-post="/favorites/remove"
+      data-label="Remove {count} selected from favorites">Remove selected from favorites</button>
+    <button type="button" class="primary selection-action" disabled hx-post="/reservations"
+      hx-confirm="Book the selected sessions?"
+      data-max="{{ max_selection }}" data-label="Book {count} selected">Book selected</button>
+  </div>
+</form>
+{% elif not problem %}
+<p>No reserved or favorite sessions yet.</p>
+{% endif %}

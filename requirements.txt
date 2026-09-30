@@ -2,4 +2,10 @@ requests>=2.32
 langchain-core>=1.6
 fastembed>=0.8
 rank-bm25>=0.2
-streamlit>=1.64
+fastapi>=0.142
+uvicorn>=0.54
+jinja2>=3.1
+python-multipart>=0.0.32
+
+# Tests only
+httpx>=0.28

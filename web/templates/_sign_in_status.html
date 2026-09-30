@@ -1,0 +1,13 @@
+{% if job and job.is_running() %}
+<div hx-get="/sign-in/status" hx-trigger="every 2s" hx-target="this" hx-swap="outerHTML">
+  <p>{{ job.message }}</p>
+  {% if job.details.url %}
+  <p>If no sign-in tab opened, <a href="{{ job.details.url }}" target="_blank" rel="noopener">open AWS Builder ID sign-in</a>. You have 5 minutes.</p>
+  {% endif %}
+</div>
+{% elif job and job.status == "failed" %}
+<p class="message error">Sign-in failed: {{ job.message }}</p>
+<button type="button" class="primary" hx-post="/sign-in" hx-target="#sign-in-status">Try again</button>
+{% else %}
+<p>Signed in.</p>
+{% endif %}

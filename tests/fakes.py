@@ -45,18 +45,33 @@ class FakeTransport:
 class FakeAuthenticator:
     """Return a fixed access token without any network calls."""
 
-    def __init__(self, access_token="test-token"):
-        """Store the token to hand out."""
+    SIGN_IN_URL = "https://signin.example.test/authorize"
+
+    def __init__(self, access_token="test-token", signed_in=True):
+        """Store the token to hand out and whether a sign-in is saved."""
         self.access_token = access_token
+        self.signed_in = signed_in
         self.signed_out = False
 
     def get_access_token(self):
         """Return the fixed access token."""
         return self.access_token
 
+    def has_saved_sign_in(self):
+        """Return whether the fake is signed in."""
+        return self.signed_in
+
+    def sign_in(self, open_browser=None):
+        """Pretend to sign in, showing the sign-in URL as the real one does."""
+        if open_browser is not None:
+            open_browser(self.SIGN_IN_URL)
+        self.signed_in = True
+        return self.access_token
+
     def sign_out(self):
         """Record that sign-out was requested."""
         self.signed_out = True
+        self.signed_in = False
 
 
 class MemoryTokenStore:

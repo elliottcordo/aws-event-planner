@@ -1,0 +1,9 @@
+{% if problem %}<p class="message error">{{ problem }}</p>{% endif %}
+<p>Sign in with your AWS Builder ID to see your schedule and add favorites.</p>
+<div id="sign-in-status">
+  {% if sign_in_job and sign_in_job.is_running() %}
+    {% with job=sign_in_job %}{% include "_sign_in_status.html" %}{% endwith %}
+  {% else %}
+    <button type="button" class="primary" hx-post="/sign-in" hx-target="#sign-in-status">Sign in</button>
+  {% endif %}
+</div>

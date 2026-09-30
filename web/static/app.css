@@ -1,0 +1,251 @@
+/* AWS Event AMP.
+   Two looks: "plain" (no skin) and "skinned", where skin.js fills the
+   --sprite-* variables with images cropped from a Winamp skin and the page
+   takes its colors from the skin's pledit.txt (--pl-* variables). */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---------- Layout ---------- */
+
+.top {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px;
+  padding: 16px 24px;
+}
+.toolbar { flex: 1; min-width: 320px; }
+.toolbar h1 { margin: 0 0 12px; font-size: 22px; }
+.toolbar-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.toolbar-row form { display: flex; align-items: flex-end; gap: 6px; }
+
+.panes {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: 16px; align-items: stretch; padding: 0 24px 24px;
+}
+
+/* Every window is a column: the frame's middle grows to fill the window. */
+.pl-window { display: flex; flex-direction: column; }
+.pl-middle { display: flex; flex: 1; min-height: 0; }
+.pl-body { flex: 1; min-width: 0; }
+
+/* The Sessions window sets the row's height. "contain: size" stops the
+   schedule's own content from making the row taller, so the schedule window
+   stretches to the Sessions window's height and its list scrolls inside. */
+#schedule-window { contain: size; }
+#schedule-window .pl-body,
+#schedule,
+#schedule-form { display: flex; flex-direction: column; min-height: 0; }
+#schedule-window .pl-body,
+#schedule,
+#schedule-form { flex: 1; }
+.schedule-scroll { position: relative; flex: 1; min-height: 0; overflow-y: auto; }
+#schedule-form .actions { padding-top: 8px; }
+
+@media (max-width: 1000px) {
+  /* Stacked: the schedule sits below the sessions with its own scroll height. */
+  .panes { grid-template-columns: 1fr; }
+  #schedule-window { contain: none; }
+  .schedule-scroll { max-height: 60vh; }
+}
+
+label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+input, select, button { font: inherit; font-size: 14px; padding: 5px 9px; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.filters .search { flex: 1; min-width: 220px; }
+.filters .search input { width: 100%; }
+.summary, .legend { margin: 6px 0; font-size: 12px; opacity: 0.85; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.hint { font-size: 12px; opacity: 0.8; }
+
+/* ---------- Session table ---------- */
+
+/* position: relative keeps absolutely positioned content, such as the
+   screen-reader-only labels, inside the scroll box instead of stretching
+   the page. */
+.table-scroll { position: relative; max-height: 68vh; overflow: auto; }
+table.sessions { width: 100%; border-collapse: collapse; }
+table.sessions th {
+  position: sticky; top: 0; z-index: 1;
+  text-align: left; font-size: 12px; padding: 6px 8px;
+}
+table.sessions td { vertical-align: top; padding: 6px 8px; }
+table.sessions td.icons { width: 38px; padding-left: 2px; padding-right: 2px; white-space: nowrap; }
+table.sessions .when { white-space: nowrap; }
+/* Code and title share one column: the code on a small line above the title. */
+table.sessions .session { min-width: 190px; max-width: 250px; }
+table.sessions .session .code { display: block; font-size: 12px; opacity: 0.85; }
+table.sessions .session .title { font-weight: 600; }
+table.sessions .abstract { min-width: 270px; cursor: help; }
+table.sessions .level { cursor: help; }
+table.sessions .clamp {
+  display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
+table.sessions .empty, table.sessions .more td { text-align: center; }
+
+/* ---------- Schedule ---------- */
+
+.schedule-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+#schedule h3 { margin: 14px 0 4px; font-size: 15px; }
+.schedule-list { list-style: none; margin: 0; padding: 0; }
+.schedule-list li { display: flex; align-items: flex-start; gap: 6px; padding: 5px 0; }
+.schedule-list input[type=checkbox] { margin: 3px 0 0; flex: none; }
+.skinned .schedule-list li:has(input:checked) {
+  background: var(--pl-selected-bg); color: var(--pl-current);
+}
+.plain .schedule-list li:has(input:checked) { background: #ddf4ff; }
+.action-message:empty { display: none; }
+.schedule-list .entry { flex: 1; min-width: 0; cursor: help; }
+
+/* Reserved and favorite icons sit in fixed slots so they line up in columns. */
+.status { display: inline-flex; flex: none; }
+.status-slot { display: inline-block; width: 1.2em; text-align: center; }
+.schedule-list .time { font-weight: 700; }
+.schedule-list .code { opacity: 0.85; }
+.schedule-list .meta { font-size: 12px; opacity: 0.8; }
+
+.message { display: inline-block; margin: 6px 0; }
+
+/* The confirm dialog; its colors come from the plain or skinned rules below. */
+.confirm-dialog { min-width: 320px; max-width: 90vw; padding: 16px 20px; }
+.confirm-dialog h2 { margin: 0 0 8px; font-size: 15px; }
+.confirm-dialog p { margin: 0 0 16px; }
+.confirm-dialog .actions { justify-content: flex-end; }
+.confirm-dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+.plain .confirm-dialog { border: 1px solid #d0d7de; border-radius: 8px; }
+.skinned .confirm-dialog {
+  background: var(--pl-normal-bg); color: var(--pl-text);
+  border: 2px solid var(--pl-normal); border-radius: 0;
+  font-family: var(--pl-font), Arial, sans-serif;
+}
+.skinned .confirm-dialog h2 { color: var(--pl-current); }
+
+/* ---------- Plain look (no skin) ---------- */
+
+body.plain { background: #f4f5f7; color: #1f2328; }
+.plain .pl-top, .plain .pl-left, .plain .pl-right, .plain .pl-bottom { display: none; }
+.plain .pl-window {
+  background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 12px 16px;
+}
+.plain .window-title { margin: 0 0 10px; font-size: 17px; }
+.plain input, .plain select, .plain button {
+  border: 1px solid #c4cad1; border-radius: 6px; background: #fff; color: inherit;
+}
+.plain button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.plain table.sessions th { background: #fff; border-bottom: 1px solid #d0d7de; }
+.plain table.sessions td { border-bottom: 1px solid #eaeef2; }
+.plain table.sessions tr:hover td { background: #f6f8fa; }
+.plain table.sessions tr:has(input:checked) td { background: #ddf4ff; }
+.plain .message.error { color: #b42318; }
+.plain .message.success { color: #1a7f37; }
+.plain .message.warning { color: #9a6700; }
+
+/* ---------- Skinned look ---------- */
+
+/* skin.js sets --page-bg to the skin's primary color and --page-text to a
+   readable color on it; the fallbacks show until the skin has loaded. */
+body.skinned {
+  background: var(--page-bg, #202225);
+  color: var(--page-text, #e8e8e8);
+  image-rendering: pixelated;
+  transition: background-color 0.3s;
+}
+.skinned input, .skinned select, .skinned button {
+  background: var(--pl-normal-bg); color: var(--pl-text);
+  border: 1px solid var(--pl-normal); border-radius: 0;
+}
+.skinned button.primary {
+  background: var(--pl-selected-bg); color: var(--pl-current);
+  border-color: var(--pl-current);
+}
+.skinned a { color: var(--pl-current); }
+
+/* Winamp's main window, drawn at double size like Winamp's "double size" mode. */
+.main-window {
+  position: relative; width: 275px; height: 116px; zoom: 2;
+  background-image: var(--sprite-main-background);
+}
+.main-title-bar {
+  position: absolute; left: 0; top: 0; width: 275px; height: 14px;
+  background-image: var(--sprite-main-title-bar);
+}
+.marquee { position: absolute; left: 111px; top: 27px; width: 154px; height: 6px; }
+.cbutton { position: absolute; top: 88px; width: 23px; height: 18px; }
+/* More specific than ".skinned button" so the sprite wins over button colors. */
+.skinned .cbutton { background: var(--sprite) no-repeat; border: 0; padding: 0; }
+.skinned .cbutton:active { background-image: var(--sprite-pressed); }
+.cb-previous { left: 16px; --sprite: var(--sprite-cb-previous); --sprite-pressed: var(--sprite-cb-previous-pressed); }
+.cb-play { left: 39px; --sprite: var(--sprite-cb-play); --sprite-pressed: var(--sprite-cb-play-pressed); }
+.cb-pause { left: 62px; --sprite: var(--sprite-cb-pause); --sprite-pressed: var(--sprite-cb-pause-pressed); }
+.cb-stop { left: 85px; --sprite: var(--sprite-cb-stop); --sprite-pressed: var(--sprite-cb-stop-pressed); }
+.cb-next { left: 108px; width: 22px; --sprite: var(--sprite-cb-next); --sprite-pressed: var(--sprite-cb-next-pressed); }
+.cb-eject {
+  left: 136px; top: 89px; width: 22px; height: 16px;
+  --sprite: var(--sprite-cb-eject); --sprite-pressed: var(--sprite-cb-eject-pressed);
+}
+.cb-shuffle {
+  left: 164px; top: 89px; width: 47px; height: 15px;
+  --sprite: var(--sprite-cb-shuffle); --sprite-pressed: var(--sprite-cb-shuffle-pressed);
+}
+.cb-repeat {
+  left: 210px; top: 89px; width: 28px; height: 15px;
+  --sprite: var(--sprite-cb-repeat); --sprite-pressed: var(--sprite-cb-repeat-pressed);
+}
+
+/* Playlist-window frame around each panel. */
+.skinned .window-title {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+}
+.skinned .pl-top {
+  display: flex; height: 20px;
+  background: var(--sprite-pl-top-tile) repeat-x;
+}
+.skinned .pl-top-left { width: 25px; background: var(--sprite-pl-top-left); }
+.skinned .pl-top-right { width: 25px; background: var(--sprite-pl-top-right); }
+.skinned .pl-top-fill { flex: 1; display: flex; align-items: center; justify-content: center; }
+.pl-title { height: 12px; }
+
+.skinned .pl-left { width: 12px; background: var(--sprite-pl-left) repeat-y; }
+.skinned .pl-right { width: 20px; background: var(--sprite-pl-right) repeat-y; }
+.skinned .pl-body {
+  padding: 10px 12px;
+  background: var(--pl-normal-bg); color: var(--pl-text);
+  font-family: var(--pl-font), Arial, sans-serif;
+  image-rendering: auto;
+}
+.skinned .pl-bottom {
+  display: flex; height: 38px;
+  background: var(--sprite-pl-bottom-tile) repeat-x;
+}
+.skinned .pl-bottom-left { width: 125px; background: var(--sprite-pl-bottom-left); }
+.skinned .pl-bottom-fill { flex: 1; }
+.skinned .pl-bottom-right { width: 150px; background: var(--sprite-pl-bottom-right); }
+
+.skinned table.sessions th {
+  background: var(--pl-normal-bg); color: var(--pl-current);
+  border-bottom: 1px solid var(--pl-normal);
+}
+.skinned table.sessions td {
+  border-bottom: 1px solid color-mix(in srgb, var(--pl-normal) 25%, transparent);
+}
+.skinned table.sessions tr:hover td,
+.skinned table.sessions tr:has(input:checked) td {
+  background: var(--pl-selected-bg); color: var(--pl-current);
+}
+.skinned table.sessions tr.scheduled .session .title,
+.skinned #schedule h3,
+.skinned .schedule-list .time { color: var(--pl-current); }
+.skinned .message.error { color: #ff7b72; }
+.skinned .message.success { color: var(--pl-current); }
+.skinned .message.warning { color: #e3b341; }

@@ -1,0 +1,23 @@
+{# A panel framed like Winamp's playlist window. The frame pieces are empty
+   elements that skin.js fills with sprites cropped from pledit.bmp; without a
+   skin they collapse and the plain heading shows instead. #}
+{% macro window(title, element_id) %}
+<section class="pl-window" id="{{ element_id }}" aria-labelledby="{{ element_id }}-title">
+  <div class="pl-top" aria-hidden="true">
+    <div class="pl-top-left"></div>
+    <div class="pl-top-fill"><canvas class="bitmap-text pl-title" data-text="{{ title }}"></canvas></div>
+    <div class="pl-top-right"></div>
+  </div>
+  <h2 class="window-title" id="{{ element_id }}-title">{{ title }}</h2>
+  <div class="pl-middle">
+    <div class="pl-left" aria-hidden="true"></div>
+    <div class="pl-body">{{ caller() }}</div>
+    <div class="pl-right" aria-hidden="true"></div>
+  </div>
+  <div class="pl-bottom" aria-hidden="true">
+    <div class="pl-bottom-left"></div>
+    <div class="pl-bottom-fill"></div>
+    <div class="pl-bottom-right"></div>
+  </div>
+</section>
+{% endmacro %}

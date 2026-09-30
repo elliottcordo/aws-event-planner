@@ -1,0 +1,123 @@
+{% from "_window.html" import window %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AWS Event AMP</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/skin.js" defer></script>
+</head>
+<body class="{{ 'skinned' if skin_style else 'plain' }}"
+  {% if skin_style %}
+  data-skin-url="/skins/{{ skin_id }}/"
+  style="--pl-text: {{ skin_style.text }}; --pl-normal: {{ skin_style.normal }}; --pl-current: {{ skin_style.current }}; --pl-normal-bg: {{ skin_style.normal_bg }}; --pl-selected-bg: {{ skin_style.selected_bg }}; --pl-font: '{{ skin_style.font }}';"
+  {% endif %}>
+
+<header class="top">
+  {% if skin_style %}
+  {# Winamp's main window: the transport buttons drive the filters below. #}
+  <div class="main-window">
+    <div class="main-title-bar" aria-hidden="true"></div>
+    <canvas class="bitmap-text marquee" aria-hidden="true"
+      data-text="{{ event_id }} *** {{ catalog.sessions | length if catalog else 0 }} sessions *** aws event amp *** "></canvas>
+    <button type="button" class="cbutton cb-previous" data-action="previous-day" title="Previous day"></button>
+    <button type="button" class="cbutton cb-play" data-action="clear" title="Clear all filters"></button>
+    <button type="button" class="cbutton cb-pause" data-action="clear" title="Clear all filters"></button>
+    <button type="button" class="cbutton cb-stop" data-action="clear" title="Clear all filters"></button>
+    <button type="button" class="cbutton cb-next" data-action="next-day" title="Next day"></button>
+    <button type="button" class="cbutton cb-eject" data-action="rebuild" title="Download data and rebuild index"></button>
+    <button type="button" class="cbutton cb-shuffle" data-action="refresh" title="Refresh the session list"></button>
+    <button type="button" class="cbutton cb-repeat" data-action="refresh" title="Refresh the session list"></button>
+  </div>
+  {% endif %}
+
+  <div class="toolbar">
+    <h1>AWS Event AMP</h1>
+    <div class="toolbar-row">
+      <form method="get" action="/" class="event-form">
+        <label>Event ID <input name="event_id" value="{{ event_id }}" size="16" pattern="[A-Za-z0-9_\-]+"></label>
+        <button type="submit">Open</button>
+      </form>
+      <form hx-post="/skin" hx-trigger="change" class="skin-form">
+        <label>Skin
+          <select name="skin_id">
+            {% for skin in skins %}
+            <option value="{{ skin.id }}" {{ 'selected' if skin.id == skin_id }}>{{ skin.name }}{% if skin.year %} ({{ skin.year }}){% endif %}</option>
+            {% endfor %}
+            <option value="{{ no_skin }}" {{ 'selected' if skin_id == no_skin }}>No skin</option>
+          </select>
+        </label>
+      </form>
+      <form id="rebuild-form" hx-post="/rebuild" hx-target="#rebuild-status"
+        hx-confirm="Download every session and rebuild the search index? This takes a few minutes.">
+        <input type="hidden" name="event_id" value="{{ event_id }}">
+        <button type="submit">Download data and rebuild index</button>
+      </form>
+    </div>
+    <div id="rebuild-status">
+      {% if rebuild_job and rebuild_job.is_running() %}{% with job=rebuild_job %}{% include "_rebuild_status.html" %}{% endwith %}{% endif %}
+    </div>
+    {% if skin_problem %}<p class="message warning">{{ skin_problem }}</p>{% endif %}
+  </div>
+</header>
+
+<main class="panes">
+  {% call window("Sessions", "sessions-window") %}
+    {% if catalog %}
+    {# hx-sync cancels a slower, older request so the newest results always win. #}
+    <form id="search-form" class="filters" hx-get="/sessions" hx-target="#results"
+      hx-trigger="change, submit, input changed delay:400ms from:#q, search from:#q"
+      hx-sync="this:replace">
+      <input type="hidden" name="event_id" value="{{ event_id }}">
+      <label>Venue
+        <select name="venue" id="venue">
+          <option value="">All</option>
+          {% for venue in venues %}<option value="{{ venue }}">{{ venue }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Date
+        <select name="date" id="date">
+          <option value="">All</option>
+          {% for day in dates %}<option value="{{ day }}">{{ format_day(day) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="search">Search
+        <input type="search" id="q" name="q" placeholder="For example: cost optimization for EKS">
+      </label>
+    </form>
+    {# Outside #results, so the message survives the reload after an action. #}
+    <div id="sessions-message" class="action-message" aria-live="polite"></div>
+    {# hx-disinherit keeps hx-sync from reaching the action buttons inside,
+       so reloading the results can't cancel a booking's reply. #}
+    <div id="results" hx-get="/sessions" hx-include="#search-form"
+      hx-trigger="load, scheduleChanged from:body" hx-sync="#search-form:replace"
+      hx-disinherit="hx-sync">Loading sessions...</div>
+    {% else %}
+    {% include "_no_data.html" %}
+    {% endif %}
+  {% endcall %}
+
+  {% call window("My schedule", "schedule-window") %}
+    <div id="schedule-message" class="action-message" aria-live="polite"></div>
+    <div id="schedule" hx-get="/schedule?event_id={{ event_id }}"
+      hx-trigger="load, scheduleChanged from:body">Loading your schedule...</div>
+  {% endcall %}
+</main>
+
+{# Replaces the browser's own confirm box, which always shows the page's
+   address ("127.0.0.1:8000 says:"); skin.js opens it for hx-confirm. #}
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-dialog-title">
+  <form method="dialog">
+    <h2 id="confirm-dialog-title">AWS Event AMP</h2>
+    <p class="confirm-message"></p>
+    <div class="actions">
+      <button value="cancel">Cancel</button>
+      <button value="ok" class="primary" autofocus>OK</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>
