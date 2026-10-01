@@ -22,7 +22,7 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from aws_events.catalog import session_date, session_start_time
+from aws_events.catalog import session_date, session_start_time, session_venue
 
 
 MGM_GRAND = "MGM Grand"
@@ -71,19 +71,6 @@ def travel_minutes(from_venue, to_venue):
         return 0
     pair = frozenset({from_venue, to_venue})
     return TRAVEL_MINUTES.get(pair, UNKNOWN_VENUE_MINUTES)
-
-
-def session_venue(session):
-    """Return a session's venue, or None if it has none.
-
-    Many sessions leave "venue" empty but name it at the start of the room,
-    as in "Wynn/Encore | Level 1 | Encore Ballroom", so that is used instead.
-    """
-    if session.get("venue"):
-        return session["venue"]
-    room = session.get("room") or ""
-    venue = room.split("|")[0].strip()
-    return venue or None
 
 
 @dataclass(frozen=True)

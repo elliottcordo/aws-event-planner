@@ -9,13 +9,14 @@
   {# Winamp's main window, without transport buttons: there are no filters here. #}
   <div class="main-window">
     <div class="main-title-bar" aria-hidden="true"></div>
+    {% include "_main_window_display.html" %}
     <canvas class="bitmap-text marquee" aria-hidden="true"
       data-text="{{ event_id }} *** schedule optimizer *** aws event amp *** "></canvas>
   </div>
   {% endif %}
 
   <div class="toolbar">
-    <h1>AWS Event AMP</h1>
+    {% include "_logo.html" %}
     <div class="toolbar-row">
       <form method="get" action="/">
         <input type="hidden" name="event_id" value="{{ event_id }}">

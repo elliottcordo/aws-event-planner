@@ -3,7 +3,7 @@
 <tr class="{{ 'scheduled' if row.reserved or row.favorite }}">
   <td><input type="checkbox" name="session_ids" value="{{ row.id }}" aria-label="Select {{ row.title }}"></td>
   <td class="icons">{{ status(row.reserved, row.favorite) }}</td>
-  <td class="when">{{ row.when }}</td>
+  <td class="when">{{ row.day }}{% if row.time %}<br><span class="time">{{ row.time }}</span>{% endif %}</td>
   <td class="session">
     {% if row.code %}<span class="code">{{ row.code }}</span>{% endif %}
     <span class="title">{{ row.title }}</span>

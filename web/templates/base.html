@@ -14,6 +14,7 @@
 <body class="{{ 'skinned' if skin_style else 'plain' }}"
   {% if skin_style %}
   data-skin-url="/skins/{{ skin_id }}/"
+  {% if vis_colors %}data-vis-colors="{{ vis_colors | join(',') }}"{% endif %}
   style="--pl-text: {{ skin_style.text }}; --pl-normal: {{ skin_style.normal }}; --pl-current: {{ skin_style.current }}; --pl-normal-bg: {{ skin_style.normal_bg }}; --pl-selected-bg: {{ skin_style.selected_bg }}; --pl-font: '{{ skin_style.font }}';"
   {% endif %}>
 

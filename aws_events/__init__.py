@@ -26,6 +26,7 @@ from aws_events.catalog import (
     default_catalog_path,
     session_date,
     session_start_time,
+    session_venue,
 )
 from aws_events.client import EventsClient, PersonalTime
 from aws_events.errors import (
@@ -72,4 +73,5 @@ __all__ = [
     "optimize_schedule",
     "session_date",
     "session_start_time",
+    "session_venue",
 ]

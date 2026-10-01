@@ -25,16 +25,19 @@ EMPTY_SCHEDULE = {"reserved": [], "favorites": [], "personalTime": []}
 
 
 def sample_sessions():
-    """Return three sessions over two venues and two days."""
+    """Return three sessions over two venues, two days, two types and three levels."""
     return [
         make_session("s1", "Serverless patterns", "Lambda and SQS in depth",
                      abbreviation="SVS301", venue="MGM Grand",
+                     type="Workshop", level="300 - Advanced",
                      sessionTime={"date": "2026-12-01", "time": "10:00"}),
         make_session("s2", "Vector databases", "Embeddings at scale",
                      abbreviation="AIM201", venue="Venetian",
+                     type="Breakout session", level="200 - Intermediate",
                      sessionTime={"date": "2026-12-02", "time": "09:00"}),
         make_session("s3", "Lambda tuning", "Cold starts",
                      abbreviation="SVS402", venue="MGM Grand",
+                     type="Workshop", level="400 - Expert",
                      sessionTime={"date": "2026-12-02", "time": "13:00"}),
     ]
 
@@ -119,6 +122,22 @@ class PageTests(WebAppTestCase):
         self.assertIn("--pl-normal: #00FF00", response.text)
         self.assertIn('<option value="MGM Grand">', response.text)
         self.assertIn('<option value="2026-12-02">Wed 2 Dec</option>', response.text)
+
+    def test_logo_on_every_page(self):
+        """Both pages show the logo, in its light- and dark-background versions."""
+        for path in ("/", "/optimizer"):
+            text = self.client.get(path).text
+            self.assertIn('src="/static/logo-light-bg.svg" alt="AWS Event AMP"', text)
+            self.assertIn('src="/static/logo-dark-bg.svg" alt="AWS Event AMP"', text)
+        self.assertEqual(self.client.get("/static/logo-dark-bg.svg").status_code, 200)
+
+    def test_display_shows_year_and_skin_colors(self):
+        """kbps and kHz show the year; the visualizer uses the skin's viscolor.txt."""
+        text = self.client.get("/").text
+        self.assertIn('class="visualizer"', text)
+        self.assertIn('data-text=" 20"', text)
+        self.assertIn('data-text="26"', text)
+        self.assertIn('data-vis-colors="#0A141E,#182129,', text)
 
     def test_no_skin_cookie_gives_plain_page(self):
         """Choosing "No skin" renders the plain look."""
@@ -224,6 +243,24 @@ class SessionResultsTests(WebAppTestCase):
         self.assertIn("1 sessions", response.text)
         self.assertIn("SVS402", response.text)
         self.assertNotIn("SVS301", response.text)
+
+    def test_type_and_level_filters_apply(self):
+        """Type and level narrow the list, and are offered in the search bar."""
+        page = self.client.get("/").text
+        self.assertIn('<option value="Workshop">Workshop</option>', page)
+        self.assertIn('<option value="400 - Expert">400 - Expert</option>', page)
+
+        workshops = self.client.get("/sessions", params={
+            "event_id": EVENT, "type": "Workshop",
+        }).text
+        self.assertIn("2 sessions", workshops)
+        self.assertNotIn("AIM201", workshops)
+
+        expert = self.client.get("/sessions", params={
+            "event_id": EVENT, "type": "Workshop", "level": "400 - Expert",
+        }).text
+        self.assertIn("1 sessions", expert)
+        self.assertIn("SVS402", expert)
 
     def test_search_returns_top_matches(self):
         """A query shows the top matches within the filters."""

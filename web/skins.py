@@ -7,7 +7,8 @@ files. The web UI uses:
   header, drawn to look like Winamp's main window;
 - pledit.bmp for the frames of the session and schedule windows, drawn to
   look like Winamp's playlist window;
-- pledit.txt for the colors and font inside those windows.
+- pledit.txt for the colors and font inside those windows;
+- viscolor.txt for the colors of the spectrum analyzer in the main window.
 
 Skins are listed in web/skins.json. A skin missing any of these files borrows
 it from the default (base) skin, as Winamp itself does.
@@ -48,6 +49,21 @@ DEFAULT_PLAYLIST_STYLE = {
     "selected_bg": "#0000C6",
     "font": "Arial",
 }
+
+# Winamp's default viscolor.txt: 0 is the background, 1 the grid dots, 2-17
+# the spectrum bars from top to bottom, 18-22 the oscilloscope, 23 the peaks.
+DEFAULT_VIS_COLORS = (
+    (0, 0, 0), (24, 33, 41),
+    (239, 49, 16), (206, 41, 16), (214, 90, 0), (214, 102, 0), (214, 115, 0),
+    (198, 123, 8), (222, 165, 24), (214, 181, 33), (189, 222, 41), (148, 222, 33),
+    (41, 206, 16), (50, 190, 16), (57, 181, 16), (49, 156, 8), (41, 148, 0),
+    (24, 132, 8),
+    (255, 255, 255), (214, 214, 222), (181, 189, 189), (160, 170, 175),
+    (148, 156, 165),
+    (150, 150, 150),
+)
+# A viscolor.txt line starts with "red,green,blue"; a comment may follow.
+VIS_COLOR_LINE = re.compile(r"^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})")
 
 # pledit.txt key (lowercase) to our style name.
 PLEDIT_KEYS = {
@@ -118,6 +134,35 @@ def parse_pledit_txt(text):
     return style
 
 
+def parse_viscolor_txt(text):
+    """Return the 24 visualizer colors from a viscolor.txt file, as "#RRGGBB".
+
+    Line N gives color N as "red,green,blue", often followed by a comment.
+    Lines that don't start that way, values over 255, and any colors after
+    the 24th are ignored; colors the file doesn't give come from Winamp's
+    defaults.
+    """
+    colors = list(DEFAULT_VIS_COLORS)
+    index = 0
+    for line in text.splitlines():
+        if index >= len(colors):
+            break
+        match = VIS_COLOR_LINE.match(line)
+        if match is None:
+            continue
+        channels = tuple(int(value) for value in match.groups())
+        if max(channels) <= 255:
+            colors[index] = channels
+        index += 1
+    return [rgb_to_hex(color) for color in colors]
+
+
+def rgb_to_hex(color):
+    """Return a (red, green, blue) tuple as "#RRGGBB"."""
+    red, green, blue = color
+    return f"#{red:02X}{green:02X}{blue:02X}"
+
+
 def relative_luminance(color):
     """Return the WCAG relative luminance of a "#RGB" or "#RRGGBB" color."""
     digits = color.lstrip("#")
@@ -175,7 +220,7 @@ class WinampSkin:
         Raises:
             SkinError: If the data is not a readable zip archive.
         """
-        wanted = set(SPRITE_SHEETS) | {"pledit.txt"}
+        wanted = set(SPRITE_SHEETS) | {"pledit.txt", "viscolor.txt"}
         files = {}
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
@@ -197,6 +242,13 @@ class WinampSkin:
         if text is None:
             return None
         return parse_pledit_txt(text.decode("latin-1"))
+
+    def vis_colors(self):
+        """Return the visualizer colors, or None if there is no viscolor.txt."""
+        text = self.files.get("viscolor.txt")
+        if text is None:
+            return None
+        return parse_viscolor_txt(text.decode("latin-1"))
 
 
 def download_file(url):
@@ -274,6 +326,15 @@ class SkinRegistry:
         if style is None:
             style = parse_pledit_txt("")
         return style
+
+    def vis_colors(self, skin_id):
+        """Return the skin's visualizer colors, falling back to the default skin."""
+        colors = self.load(skin_id).vis_colors()
+        if colors is None and skin_id != self.default_skin_id:
+            colors = self.load(self.default_skin_id).vis_colors()
+        if colors is None:
+            colors = parse_viscolor_txt("")
+        return colors
 
     def load(self, skin_id):
         """Return the WinampSkin for an ID, downloading it the first time.

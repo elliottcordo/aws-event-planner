@@ -29,6 +29,19 @@ def session_start_time(session):
     return session_time.get("time")
 
 
+def session_venue(session):
+    """Return a session's venue, or None if it has none.
+
+    Many sessions leave "venue" empty but name it at the start of the room,
+    as in "Wynn/Encore | Level 1 | Encore Ballroom", so that is used instead.
+    """
+    if session.get("venue"):
+        return session["venue"]
+    room = session.get("room") or ""
+    venue = room.split("|")[0].strip()
+    return venue or None
+
+
 def chronological_key(session):
     """Sort key that orders sessions by date, then start time, then title.
 
@@ -48,20 +61,29 @@ class SessionFilter:
     Attributes:
         venue: Exact venue name, for example "MGM Grand".
         date: The day the session starts, as "YYYY-MM-DD".
+        session_type: Exact session type, for example "Workshop".
+        level: Exact level, for example "300 - Advanced".
     """
 
     venue: str = None
     date: str = None
+    session_type: str = None
+    level: str = None
 
     def is_empty(self):
         """Return True if no criteria are set, so every session matches."""
-        return self.venue is None and self.date is None
+        return (self.venue is None and self.date is None
+                and self.session_type is None and self.level is None)
 
     def matches(self, session):
         """Return True if the session meets every criterion that is set."""
-        if self.venue is not None and session.get("venue") != self.venue:
+        if self.venue is not None and session_venue(session) != self.venue:
             return False
         if self.date is not None and session_date(session) != self.date:
+            return False
+        if self.session_type is not None and session.get("type") != self.session_type:
+            return False
+        if self.level is not None and session.get("level") != self.level:
             return False
         return True
 
@@ -117,9 +139,24 @@ class SessionCatalog:
         path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
     def venues(self):
-        """Return the distinct venue names, sorted; sessions without one are ignored."""
-        names = {session["venue"] for session in self.sessions if session.get("venue")}
+        """Return the distinct venue names, sorted; sessions without one are ignored.
+
+        Venues named only in a session's room count too (see session_venue).
+        """
+        names = set()
+        for session in self.sessions:
+            venue = session_venue(session)
+            if venue:
+                names.add(venue)
         return sorted(names)
+
+    def types(self):
+        """Return the distinct session types, sorted; missing ones are ignored."""
+        return distinct_values(self.sessions, "type")
+
+    def levels(self):
+        """Return the distinct levels, sorted, which puts "100 - ..." first."""
+        return distinct_values(self.sessions, "level")
 
     def dates(self):
         """Return the distinct session dates ("YYYY-MM-DD"), sorted."""
@@ -141,3 +178,12 @@ class SessionCatalog:
     def __len__(self):
         """Return the number of sessions."""
         return len(self.sessions)
+
+
+def distinct_values(sessions, field):
+    """Return the distinct non-empty values of one field of the sessions, sorted."""
+    values = set()
+    for session in sessions:
+        if session.get(field):
+            values.add(session[field])
+    return sorted(values)

@@ -33,8 +33,9 @@ SERVER_START_TIMEOUT_SECONDS = 10
 # Long enough for pywebview to answer the page's close() call before it goes.
 CLOSE_DELAY_SECONDS = 0.2
 MAX_WINDOW_SIZE = (1600, 1000)
-# Narrower than 1000 pixels, the Sessions and My schedule panels stack.
-MIN_WINDOW_SIZE = (1100, 700)
+# Narrower than this, the session table's last columns (Type, Level) no
+# longer fit beside the My schedule panel.
+MIN_WINDOW_SIZE = (1280, 700)
 # Room left around the window for the menu bar and Dock (or taskbar).
 SCREEN_MARGIN = 80
 
@@ -110,8 +111,8 @@ def window_size(screen_width, screen_height):
     """Return a (width, height) that fills most of a screen of the given size.
 
     The page fits itself to the window, so a taller window shows more of each
-    list. The window is never smaller than MIN_WINDOW_SIZE, below which the two
-    panels would stack.
+    list. The window is never smaller than MIN_WINDOW_SIZE, below which the
+    session table would not fit.
     """
     max_width, max_height = MAX_WINDOW_SIZE
     min_width, min_height = MIN_WINDOW_SIZE

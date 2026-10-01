@@ -261,7 +261,7 @@ wherever you run the command from. `data/` is in `.gitignore`. To keep them
 somewhere else, pass `--catalog PATH` and `--index PATH` to any of the three
 commands.
 
-## Using the web app
+## Using the web/desktop app
 
 ```bash
 python3 events_web.py
@@ -304,7 +304,7 @@ with that icon; this hasn't been tested on Windows yet.
   `build-index` for you. Use it the first time, and whenever you want the latest
   catalog. For re:Invent it takes about 3 minutes, and progress shows under the
   button.
-- **Sessions (left):** filter by venue and date. With the search box empty, the
+- **Sessions (left):** filter by venue, date, type and level. With the search box empty, the
   table lists every matching session in time order, 100 at a time (**Show
   more** loads the next 100). Type a query to see the top 10 hybrid-search
   matches within the filters. **Hover over an abstract to read all of it.**
@@ -379,6 +379,12 @@ The page is then drawn with the skin's own artwork:
   - ▶, ⏸ and ⏹ clear all filters and the search.
   - ⏏ downloads data and rebuilds the index, after asking.
   - Shuffle and Repeat refresh the session list.
+- The main window's spectrum analyzer plays along in the skin's own colors
+  (from its `viscolor.txt`). It's a simulation, not real audio, but it reacts to
+  you: typing, ticking sessions, clicking buttons and new results all pump it
+  up, and an error makes it cut out for a moment. With your system set to
+  reduce motion, it stays still. The kbps and kHz readouts show the event's
+  year: 20 kbps, 26 kHz for 2026.
 - The Sessions and My schedule panels are framed like Winamp's playlist window,
   in the colors and font from the skin's `pledit.txt`. If a skin's text colors
   are hard to read (for example dark red on black), a more readable color from

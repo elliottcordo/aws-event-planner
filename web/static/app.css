@@ -22,9 +22,30 @@ body {
   padding: 16px 24px;
 }
 .toolbar { flex: 1; min-width: 320px; }
-.toolbar h1 { margin: 0 0 12px; font-size: 22px; }
-.toolbar-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.toolbar-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 .toolbar-row form { display: flex; align-items: flex-end; gap: 6px; }
+/* Every toolbar control is the same height, so the row lines up. */
+.toolbar-row input, .toolbar-row select, .toolbar-row button { height: 36px; }
+.toolbar-row select { min-width: 220px; }
+.field-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; opacity: 0.75;
+}
+/* The event ID box and its Open button read as one control. */
+.toolbar-row .event-form { gap: 0; }
+.toolbar .event-form input { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.toolbar .event-form button {
+  margin-left: -1px; border-top-left-radius: 0; border-bottom-left-radius: 0;
+}
+.rebuild-button span { display: inline-block; margin-right: 2px; font-size: 17px; line-height: 1; }
+
+/* The logo comes in two versions; show the one made for the background.
+   Skinned pages start dark until skin.js has measured the skin's color. */
+.logo { margin: 0 0 14px; line-height: 0; }
+.logo img { height: 72px; width: auto; }
+.logo-for-dark { display: none; }
+.skinned:not([data-page-tone="light"]) .logo-for-light { display: none; }
+.skinned:not([data-page-tone="light"]) .logo-for-dark { display: inline; }
 
 .panes {
   display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
@@ -77,16 +98,17 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 table.sessions { width: 100%; border-collapse: collapse; }
 table.sessions th {
   position: sticky; top: 0; z-index: 1;
-  text-align: left; font-size: 12px; padding: 6px 8px;
+  text-align: left; font-size: 12px; padding: 6px;
 }
-table.sessions td { vertical-align: top; padding: 6px 8px; }
+table.sessions td { vertical-align: top; padding: 6px; }
 table.sessions td.icons { width: 38px; padding-left: 2px; padding-right: 2px; white-space: nowrap; }
 table.sessions .when { white-space: nowrap; }
+table.sessions .when .time { font-weight: 700; }
 /* Code and title share one column: the code on a small line above the title. */
-table.sessions .session { min-width: 190px; max-width: 250px; }
+table.sessions .session { min-width: 150px; max-width: 250px; }
 table.sessions .session .code { display: block; font-size: 12px; opacity: 0.85; }
 table.sessions .session .title { font-weight: 600; }
-table.sessions .abstract { min-width: 270px; cursor: help; }
+table.sessions .abstract { min-width: 130px; cursor: help; }
 table.sessions .level { cursor: help; }
 table.sessions .clamp {
   display: -webkit-box; -webkit-box-orient: vertical;
@@ -251,6 +273,16 @@ body.skinned {
   background-image: var(--sprite-main-title-bar);
 }
 .marquee { position: absolute; left: 111px; top: 27px; width: 154px; height: 6px; }
+/* The display's spectrum analyzer and kbps / kHz readouts (Winamp 2 layout). */
+.visualizer { position: absolute; left: 24px; top: 43px; width: 76px; height: 16px; }
+/* Over the time display's colon, a piece of the blank display beside it. */
+.time-blank {
+  position: absolute; left: 69px; top: 26px; width: 9px; height: 13px;
+  background-image: var(--sprite-time-blank);
+}
+.readout { position: absolute; top: 43px; height: 6px; }
+.readout-kbps { left: 111px; width: 15px; }
+.readout-khz { left: 156px; width: 10px; }
 .cbutton { position: absolute; top: 88px; width: 23px; height: 18px; }
 /* More specific than ".skinned button" so the sprite wins over button colors. */
 .skinned .cbutton { background: var(--sprite) no-repeat; border: 0; padding: 0; }
@@ -294,13 +326,13 @@ body.skinned {
   font-family: var(--pl-font), Arial, sans-serif;
   image-rendering: auto;
 }
+/* Only the plain strip from the bottom of the playlist frame, without its
+   corner pieces: those carry Winamp's playlist buttons, which do nothing here.
+   The lowest pixels of the strip hold the frame's bottom edge. */
 .skinned .pl-bottom {
-  display: flex; height: 38px;
-  background: var(--sprite-pl-bottom-tile) repeat-x;
+  display: block; height: 12px;
+  background: var(--sprite-pl-bottom-tile) left top repeat-x;
 }
-.skinned .pl-bottom-left { width: 125px; background: var(--sprite-pl-bottom-left); }
-.skinned .pl-bottom-fill { flex: 1; }
-.skinned .pl-bottom-right { width: 150px; background: var(--sprite-pl-bottom-right); }
 
 .skinned table.sessions th {
   background: var(--pl-normal-bg); color: var(--pl-current);

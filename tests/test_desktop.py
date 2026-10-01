@@ -101,7 +101,7 @@ class WindowOptionsTests(unittest.TestCase):
 
     def test_window_never_smaller_than_minimum(self):
         """On a small screen the window keeps its minimum size."""
-        self.assertEqual(window_size(1024, 700), (1100, 700))
+        self.assertEqual(window_size(1024, 700), (1280, 700))
 
 
 class AppIconTests(unittest.TestCase):

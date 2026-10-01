@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -84,10 +84,17 @@ def create_app(services):
                 skin_problem = f"Could not load the skin, so it is off: {error}"
                 skin_id = NO_SKIN
 
+        vis_colors = None
+        if skin_style is not None:
+            vis_colors = services.skins.vis_colors(skin_id)
+
         search = services.search_for(event_id)
+        catalog = search.catalog if search else None
         return {
             "event_id": event_id,
-            "catalog": search.catalog if search else None,
+            "event_year": views.event_year(event_id, catalog),
+            "vis_colors": vis_colors,
+            "catalog": catalog,
             "skins": services.skins.skins(),
             "skin_id": skin_id,
             "no_skin": NO_SKIN,
@@ -105,6 +112,8 @@ def create_app(services):
         return render(
             request, "index.html",
             venues=catalog.venues() if catalog else [],
+            session_types=catalog.types() if catalog else [],
+            levels=catalog.levels() if catalog else [],
             dates=catalog.dates() if catalog else [],
             format_day=views.format_day,
             legend=legend(),
@@ -119,6 +128,7 @@ def create_app(services):
 
     @app.get("/sessions", response_class=HTMLResponse)
     def sessions(request: Request, event_id: str, venue: str = "", date: str = "",
+                 session_type: str = Query("", alias="type"), level: str = "",
                  q: str = "", offset: int = 0):
         """Return the results table, or the next page of rows when offset > 0."""
         check_event_id(event_id)
@@ -126,7 +136,10 @@ def create_app(services):
         if search is None:
             return render(request, "_no_data.html")
 
-        session_filter = SessionFilter(venue=venue or None, date=date or None)
+        session_filter = SessionFilter(
+            venue=venue or None, date=date or None,
+            session_type=session_type or None, level=level or None,
+        )
         if q.strip():
             results = search.search(
                 q, limit=SEARCH_LIMIT, session_filter=session_filter
@@ -146,7 +159,8 @@ def create_app(services):
         more_url = None
         if next_offset is not None:
             more_url = "/sessions?" + urlencode({
-                "event_id": event_id, "venue": venue, "date": date, "q": q,
+                "event_id": event_id, "venue": venue, "date": date,
+                "type": session_type, "level": level, "q": q,
                 "offset": next_offset,
             })
         statuses = views.schedule_status(current_schedule(event_id))

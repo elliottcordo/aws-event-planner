@@ -13,6 +13,7 @@ from web.skins import (
     WinampSkin,
     contrast_ratio,
     parse_pledit_txt,
+    parse_viscolor_txt,
 )
 
 
@@ -32,6 +33,7 @@ BASE_WSZ = make_wsz({
     "text.bmp": b"base-text",
     "cbuttons.bmp": b"base-cbuttons",
     "pledit.txt": b"[Text]\r\nNormal=#00FF00\r\nNormalBG=#000000\r\n",
+    "viscolor.txt": b"10,20,30, // background\r\n",
 })
 # A skin with its files in a subfolder, no pledit.txt and no cbuttons.bmp.
 PARTIAL_WSZ = make_wsz({
@@ -80,6 +82,31 @@ class PleditTests(unittest.TestCase):
         """Black on white is the maximum contrast of 21."""
         self.assertAlmostEqual(contrast_ratio("#000", "#FFFFFF"), 21.0)
         self.assertAlmostEqual(contrast_ratio("#777777", "#777777"), 1.0)
+
+
+class ViscolorTests(unittest.TestCase):
+    """Reading the spectrum analyzer colors from viscolor.txt."""
+
+    def test_reads_colors_in_order_with_comments(self):
+        """Each line gives the next color; comments and spacing are fine."""
+        colors = parse_viscolor_txt("0,0,0, // background\r\n 24, 33, 41 // dots\r\n")
+        self.assertEqual(colors[:2], ["#000000", "#182129"])
+        self.assertEqual(len(colors), 24)
+
+    def test_missing_and_bad_values_use_defaults(self):
+        """An empty file gives Winamp's colors; a bad line is skipped."""
+        defaults = parse_viscolor_txt("")
+        self.assertEqual(defaults[2], "#EF3110")
+        colors = parse_viscolor_txt("junk\n255,255,255\n999,0,0\n")
+        self.assertEqual(colors[0], "#FFFFFF")
+        # 999 is out of range: color 1 keeps its default, and the slot is used.
+        self.assertEqual(colors[1], defaults[1])
+        self.assertEqual(colors[2], defaults[2])
+
+    def test_extra_lines_are_ignored(self):
+        """Only the first 24 colors count."""
+        text = "\n".join(["1,1,1"] * 30)
+        self.assertEqual(parse_viscolor_txt(text), ["#010101"] * 24)
 
 
 class WinampSkinTests(unittest.TestCase):
@@ -133,6 +160,12 @@ class SkinRegistryTests(unittest.TestCase):
         self.assertEqual([info.id for info in registry.skins()], ["base", "partial"])
         self.assertEqual(registry.get("partial").year, 2001)
         self.assertIsNone(registry.get("missing"))
+
+    def test_vis_colors_are_borrowed_from_default_skin(self):
+        """A skin without viscolor.txt uses the base skin's colors."""
+        registry = self.make_registry()
+        self.assertEqual(registry.vis_colors("base")[0], "#0A141E")
+        self.assertEqual(registry.vis_colors("partial")[0], "#0A141E")
 
     def test_missing_files_are_borrowed_from_default_skin(self):
         """A missing sheet and missing pledit.txt come from the base skin."""

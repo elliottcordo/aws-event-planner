@@ -7,7 +7,7 @@ from tests.fakes import make_session
 from web.views import (
     describe_bulk_result,
     describe_failure,
-    format_when,
+    event_year,
     session_row,
     short_level,
 )
@@ -59,12 +59,14 @@ class DescribeTests(unittest.TestCase):
 class TableFormatTests(unittest.TestCase):
     """Compact values for the results table."""
 
-    def test_when_shows_day_month_and_time(self):
-        """When shows weekday, day, month and start time."""
+    def test_when_gives_day_and_time_separately(self):
+        """The row has the day ("Wed 2 Dec") and start time apart, for two lines."""
         session = make_session("s1", "T", sessionTime={"date": "2026-12-02",
                                                        "time": "13:30"})
-        self.assertEqual(format_when(session), "Wed 2 Dec 13:30")
-        self.assertEqual(format_when({"sessionId": "s2"}), "Date not set")
+        row = session_row(session, {})
+        self.assertEqual((row["day"], row["time"]), ("Wed 2 Dec", "13:30"))
+        unscheduled = session_row(make_session("s2", "T"), {})
+        self.assertEqual((unscheduled["day"], unscheduled["time"]), ("Date not set", ""))
 
     def test_short_level_keeps_only_the_number(self):
         """"300 - Advanced" becomes "300"; other text is kept as it is."""
@@ -89,6 +91,28 @@ class TableFormatTests(unittest.TestCase):
         row = session_row(make_session("s1", "T", level=None, type=None), {})
         self.assertEqual(row["level"], "N/A")
         self.assertEqual(row["type"], "")
+
+
+
+class EventYearTests(unittest.TestCase):
+    """The year shown in the kbps and kHz readouts."""
+
+    def test_year_from_first_session_date(self):
+        """The catalog's first session date gives the year."""
+        catalog = SessionCatalog("e1", [
+            make_session("s1", "T", sessionTime={"date": "2025-12-01", "time": "09:00"}),
+        ])
+        self.assertEqual(event_year("reinvent2026", catalog), "2025")
+
+    def test_year_from_event_id(self):
+        """Without session dates, a year in the event ID is used."""
+        self.assertEqual(event_year("reinvent2026"), "2026")
+        self.assertEqual(event_year("summit-2027-nyc", SessionCatalog("e", [])), "2027")
+
+    def test_no_year(self):
+        """IDs without a plausible year give None."""
+        self.assertIsNone(event_year("reinvent"))
+        self.assertIsNone(event_year("event120261"))
 
 
 if __name__ == "__main__":

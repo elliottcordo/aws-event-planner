@@ -3,6 +3,7 @@
 import unittest
 from datetime import datetime
 
+from aws_events.catalog import session_venue
 from aws_events.schedule_optimizer import (
     CAESARS_FORUM,
     CAESARS_PALACE,
@@ -13,7 +14,6 @@ from aws_events.schedule_optimizer import (
     PlannedSession,
     optimize_schedule,
     plan_day,
-    session_venue,
     travel_minutes,
 )
 from tests.fakes import make_session

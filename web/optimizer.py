@@ -9,11 +9,10 @@ import csv
 import io
 from dataclasses import dataclass, field
 
-from aws_events.catalog import session_date, session_start_time
+from aws_events.catalog import session_date, session_start_time, session_venue
 from aws_events.schedule import group_schedule_by_date
 from aws_events.schedule_optimizer import (
     DEFAULT_VENUES_PER_DAY,
-    session_venue,
     MAX_VENUES_PER_DAY,
     MIN_VENUES_PER_DAY,
     PlannedSession,

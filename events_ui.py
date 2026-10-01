@@ -24,6 +24,7 @@ from aws_events import (
     default_index_path,
     session_date,
     session_start_time,
+    session_venue,
 )
 from aws_events.client import MAX_SESSIONS_PER_REQUEST
 from aws_events.schedule import group_schedule_by_date
@@ -112,7 +113,7 @@ def session_rows(sessions, icons):
             "Code": session.get("abbreviation", ""),
             "Title": session.get("title", ""),
             "Abstract": session.get("abstract", ""),
-            "Venue": session.get("venue") or "",
+            "Venue": session_venue(session) or "",
             "Type": session.get("type", ""),
             "Level": session.get("level", ""),
         })
@@ -357,8 +358,9 @@ def render_schedule_panel(event_id, catalog):
             code = session.get("abbreviation", "")
             icons = status_icons(entry.reserved, entry.favorite)
             details = [f"{icons} {entry.status_label()}"]
-            if session.get("venue"):
-                details.insert(0, session["venue"])
+            venue = session_venue(session)
+            if venue:
+                details.insert(0, venue)
             st.markdown(
                 f"**{time}** · {code} {session['title']}  \n"
                 f":gray[{' · '.join(details)}]"

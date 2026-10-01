@@ -1,0 +1,13 @@
+{# The display inside Winamp's main window, at Winamp 2's positions: the
+   spectrum analyzer (drawn by skin.js), and the kbps and kHz readouts, which
+   show the event's year split in two, as in " 20" kbps, "26" kHz. #}
+{# Covers the time display, whose colon is part of the skin's artwork: with no
+   track playing there is no time to show, so the colon would float alone. #}
+<div class="time-blank" aria-hidden="true"></div>
+<canvas class="visualizer" width="76" height="16" aria-hidden="true"></canvas>
+{% if event_year %}
+<canvas class="bitmap-text readout readout-kbps" aria-hidden="true"
+  data-text="{{ ' ' ~ event_year[:2] }}"></canvas>
+<canvas class="bitmap-text readout readout-khz" aria-hidden="true"
+  data-text="{{ event_year[2:] }}"></canvas>
+{% endif %}

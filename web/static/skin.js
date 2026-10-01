@@ -13,15 +13,16 @@ const SPRITES = {
     "pl-top-right": [153, 0, 25, 20],
     "pl-left": [0, 42, 12, 29],
     "pl-right": [31, 42, 20, 29],
-    "pl-bottom-left": [0, 72, 125, 38],
     "pl-bottom-tile": [179, 0, 25, 38],
-    "pl-bottom-right": [126, 72, 150, 38],
   },
   "titlebar.bmp": {
     "main-title-bar": [27, 0, 275, 14],
   },
   "main.bmp": {
     "main-background": [0, 0, 275, 116],
+    // Blank display just left of the time display's colon, used to cover the
+    // colon. It is 10 pixels away, so dotted display patterns still line up.
+    "time-blank": [59, 26, 9, 13],
   },
   "cbuttons.bmp": {
     "cb-previous": [0, 0, 23, 18],
@@ -103,7 +104,9 @@ function drawBitmapText(canvas, font, text) {
         index * GLYPH_WIDTH, 0, GLYPH_WIDTH, GLYPH_HEIGHT);
     }
   });
-  if (!canvas.classList.contains("marquee")) {
+  // The main window is zoomed and sizes its own text; elsewhere, draw it at
+  // double size like the rest of the skin.
+  if (!canvas.closest(".main-window")) {
     canvas.style.width = `${canvas.width * 2}px`;
   }
 }
@@ -191,8 +194,10 @@ function colorPageBackground(mainImage) {
   const contrastWithBlack = (background + 0.05) / 0.05;
   const bodyStyle = document.body.style;
   bodyStyle.setProperty("--page-bg", `rgb(${color.join(", ")})`);
-  bodyStyle.setProperty("--page-text",
-    contrastWithWhite >= contrastWithBlack ? "#ffffff" : "#111111");
+  const isDark = contrastWithWhite >= contrastWithBlack;
+  bodyStyle.setProperty("--page-text", isDark ? "#ffffff" : "#111111");
+  // app.css shows the logo made for this background.
+  document.body.dataset.pageTone = isDark ? "dark" : "light";
 }
 
 async function applySkin() {
@@ -302,6 +307,145 @@ function confirmWithDialog(event) {
   });
 }
 
+// The main window's spectrum analyzer plays a made-up tune: a kick drum in
+// the low bars and busier highs, with peak dots that fall back down, like
+// Winamp's. It livens up when the page is busy. Each action adds "energy",
+// which then fades back to a gentle idle level.
+const VIS_BARS = 19; // 3-pixel bars with 1-pixel gaps fill the 76-pixel box.
+const VIS_HEIGHT = 16;
+const VIS_FRAME_MS = 33; // About 30 frames a second.
+const BEAT_MS = 500; // 120 beats a minute.
+const IDLE_ENERGY = 0.3;
+const ENERGY_FADE = 0.015; // Share of the gap to idle closed each frame.
+const BAR_FALL = 0.07; // Bars rise at once and fall this much a frame.
+const PEAK_HOLD_FRAMES = 8;
+const PEAK_GRAVITY = 0.004;
+// How much energy each kind of action adds (energy runs from 0 to 1).
+const ENERGY_FOR = { typing: 0.06, tick: 0.2, click: 0.3, request: 0.12, results: 0.45 };
+// Winamp's default viscolor.txt, for a skin page without its own colors.
+const DEFAULT_VIS_COLORS = ["#000000", "#182129", "#EF3110", "#CE2910", "#D65A00",
+  "#D66600", "#D67300", "#C67B08", "#DEA518", "#D6B521", "#BDDE29", "#94DE21",
+  "#29CE10", "#32BE10", "#39B510", "#319C08", "#299400", "#188408", "#FFFFFF",
+  "#D6D6DE", "#B5BDBD", "#A0AAAF", "#949CA5", "#969696"];
+
+const visualizer = {
+  energy: IDLE_ENERGY,
+  levels: new Array(VIS_BARS).fill(0),
+  peaks: new Array(VIS_BARS).fill(0),
+  peakHolds: new Array(VIS_BARS).fill(0),
+  peakSpeeds: new Array(VIS_BARS).fill(0),
+};
+
+// Adds energy for one of the user's actions.
+function excite(action) {
+  visualizer.energy = Math.min(1, visualizer.energy + ENERGY_FOR[action]);
+}
+
+// Returns how loud bar `index` (0 = lowest notes) should be right now, 0 to 1.
+function barTarget(index, now) {
+  const lowness = 1 - index / VIS_BARS;
+  const beatPhase = (now % BEAT_MS) / BEAT_MS;
+  const kick = Math.exp(-beatPhase * 6) * lowness * lowness;
+  // Off-beat hi-hats ring in the upper bars.
+  const hatPhase = ((now + BEAT_MS / 2) % BEAT_MS) / BEAT_MS;
+  const hat = Math.exp(-hatPhase * 10) * (1 - lowness) * 0.6;
+  const shape = 0.25 + 0.45 * lowness;
+  const noise = Math.random() * 0.45;
+  const level = visualizer.energy * (shape + kick + hat + noise);
+  return Math.min(1, level);
+}
+
+// Moves the bars and peaks on by one frame.
+function stepVisualizer(now) {
+  visualizer.energy += (IDLE_ENERGY - visualizer.energy) * ENERGY_FADE;
+  for (let index = 0; index < VIS_BARS; index++) {
+    const target = barTarget(index, now);
+    const fallen = visualizer.levels[index] - BAR_FALL;
+    visualizer.levels[index] = Math.max(target, fallen, 0);
+
+    if (visualizer.levels[index] >= visualizer.peaks[index]) {
+      visualizer.peaks[index] = visualizer.levels[index];
+      visualizer.peakHolds[index] = PEAK_HOLD_FRAMES;
+      visualizer.peakSpeeds[index] = 0;
+    } else if (visualizer.peakHolds[index] > 0) {
+      visualizer.peakHolds[index] -= 1;
+    } else {
+      visualizer.peakSpeeds[index] += PEAK_GRAVITY;
+      visualizer.peaks[index] = Math.max(0, visualizer.peaks[index] - visualizer.peakSpeeds[index]);
+    }
+  }
+}
+
+// Draws the bars in the skin's colors: each pixel row of a bar has its own
+// color (colors 2-17, top to bottom), over the background and grid dots.
+function drawVisualizer(context, colors) {
+  context.fillStyle = colors[0];
+  context.fillRect(0, 0, VIS_BARS * 4, VIS_HEIGHT);
+  context.fillStyle = colors[1];
+  for (let y = 1; y < VIS_HEIGHT; y += 2) {
+    for (let x = 1; x < VIS_BARS * 4; x += 2) {
+      context.fillRect(x, y, 1, 1);
+    }
+  }
+  for (let index = 0; index < VIS_BARS; index++) {
+    const x = index * 4;
+    const height = Math.round(visualizer.levels[index] * VIS_HEIGHT);
+    for (let y = VIS_HEIGHT - height; y < VIS_HEIGHT; y++) {
+      context.fillStyle = colors[2 + y];
+      context.fillRect(x, y, 3, 1);
+    }
+    const peakY = VIS_HEIGHT - 1 - Math.round(visualizer.peaks[index] * (VIS_HEIGHT - 1));
+    if (visualizer.peaks[index] > 0) {
+      context.fillStyle = colors[23];
+      context.fillRect(x, peakY, 3, 1);
+    }
+  }
+}
+
+// Listens for the user's actions so the music can react to them.
+function listenForActivity() {
+  document.addEventListener("input", () => excite("typing"));
+  document.addEventListener("change", () => excite("tick"));
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("button, a")) {
+      excite("click");
+    }
+  });
+  document.body.addEventListener("htmx:beforeRequest", () => excite("request"));
+  document.body.addEventListener("htmx:afterSwap", () => excite("results"));
+  // Something went wrong: the music cuts out, then slowly comes back.
+  document.body.addEventListener("htmx:responseError", () => {
+    visualizer.energy = 0;
+  });
+}
+
+function startVisualizer() {
+  const canvas = document.querySelector(".visualizer");
+  if (!canvas) {
+    return; // No skin, so no main window.
+  }
+  const context = canvas.getContext("2d");
+  const colorList = document.body.dataset.visColors;
+  const colors = colorList ? colorList.split(",") : DEFAULT_VIS_COLORS;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    stepVisualizer(performance.now()); // One still frame, no animation.
+    drawVisualizer(context, colors);
+    return;
+  }
+  listenForActivity();
+  let lastFrame = 0;
+  function frame(now) {
+    if (now - lastFrame >= VIS_FRAME_MS) {
+      lastFrame = now;
+      stepVisualizer(now);
+      drawVisualizer(context, colors);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 // The desktop app (events_desktop.py) shows the page in a window without a
 // frame, so the page fits itself to the window and adds minimize and close
 // buttons in the window's top-right corner.
@@ -332,6 +476,7 @@ window.addEventListener("pywebviewready", setUpDesktopWindow);
 document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("htmx:confirm", confirmWithDialog);
   applySkin();
+  startVisualizer();
   document.querySelectorAll(".cbutton").forEach((button) => {
     button.addEventListener("click", () => handleTransportButton(button.dataset.action));
   });

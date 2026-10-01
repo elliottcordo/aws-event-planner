@@ -1,8 +1,9 @@
 """Formatting helpers that turn sessions and schedules into display values."""
 
+import re
 from datetime import date
 
-from aws_events import session_date, session_start_time
+from aws_events import session_date, session_start_time, session_venue
 
 
 RESERVED_ICON = "✅"
@@ -17,16 +18,29 @@ def format_day(day):
     return f"{parsed:%a} {parsed.day} {parsed:%b}"
 
 
+# Event IDs often carry their year, as in "reinvent2026".
+YEAR_IN_EVENT_ID = re.compile(r"(?<!\d)(20\d\d)(?!\d)")
+
+
+def event_year(event_id, catalog=None):
+    """Return the year an event takes place, as "YYYY", or None if unknown.
+
+    The first session date wins; without a catalog, a year in the event ID
+    (as in "reinvent2026") is used.
+    """
+    if catalog is not None:
+        dates = catalog.dates()
+        if dates:
+            return dates[0][:4]
+    match = YEAR_IN_EVENT_ID.search(event_id)
+    if match:
+        return match.group(1)
+    return None
+
+
 NO_LEVEL = "N/A"
 
 
-def format_when(session):
-    """Return a session's day and start time, such as "Wed 2 Dec 13:30"."""
-    when = format_day(session_date(session))
-    start_time = session_start_time(session)
-    if start_time:
-        when = f"{when} {start_time}"
-    return when
 
 
 def short_level(level):
@@ -72,11 +86,13 @@ def session_row(session, statuses):
         "id": session["sessionId"],
         "reserved": status.get("reserved", False),
         "favorite": status.get("favorite", False),
-        "when": format_when(session),
+        # Day and time are shown on two lines, to keep the column narrow.
+        "day": format_day(session_date(session)),
+        "time": session_start_time(session) or "",
         "code": session.get("abbreviation") or "",
         "title": session.get("title") or "",
         "abstract": session.get("abstract") or "",
-        "venue": session.get("venue") or "",
+        "venue": session_venue(session) or "",
         "type": session.get("type") or "",
         "level": short_level(level),
         "level_full": level,

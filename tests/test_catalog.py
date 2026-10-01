@@ -95,6 +95,31 @@ class SessionFilterTests(unittest.TestCase):
         self.assertEqual(self.catalog.venues(), ["MGM Grand", "Venetian"])
         self.assertEqual(self.catalog.dates(), ["2026-12-02", "2026-12-03"])
 
+    def test_type_and_level(self):
+        """Type and level filters match exactly; types() and levels() list them."""
+        catalog = SessionCatalog("e1", [
+            make_session("a", "A", type="Workshop", level="300 - Advanced"),
+            make_session("b", "B", type="Chalk talk", level="300 - Advanced"),
+            make_session("c", "C", type="Workshop", level="100 - Foundational"),
+            make_session("d", "D"),
+        ])
+        self.assertEqual(catalog.types(), ["Chalk talk", "Workshop"])
+        self.assertEqual(catalog.levels(), ["100 - Foundational", "300 - Advanced"])
+        both = SessionFilter(session_type="Workshop", level="300 - Advanced")
+        self.assertEqual([s["sessionId"] for s in catalog.filter_sessions(both)], ["a"])
+        self.assertFalse(both.is_empty())
+        self.assertTrue(SessionFilter().is_empty())
+
+    def test_venues_named_only_in_the_room_count(self):
+        """Sessions with no venue field are listed and filtered by their room's venue."""
+        catalog = SessionCatalog("e1", [
+            make_session("wynn", "Wynn talk", room="Wynn/Encore | Level 1 | Latour 7"),
+            make_session("mgm", "MGM talk", venue="MGM Grand", room="Level 3"),
+        ])
+        self.assertEqual(catalog.venues(), ["MGM Grand", "Wynn/Encore"])
+        matching = catalog.filter_sessions(SessionFilter(venue="Wynn/Encore"))
+        self.assertEqual([s["sessionId"] for s in matching], ["wynn"])
+
     def test_unscheduled_sessions_sort_last(self):
         """Sessions without a date sort after scheduled ones."""
         ordered = sorted(self.catalog.sessions, key=chronological_key)

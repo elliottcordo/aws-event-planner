@@ -41,6 +41,7 @@ from aws_events import (
     TokenStore,
     default_catalog_path,
     default_index_path,
+    session_venue,
 )
 
 
@@ -225,8 +226,9 @@ def format_search_results(results):
         session_time = session.get("sessionTime") or {}
         when = f"{session_time.get('date', '')} {session_time.get('time', '')}"
         details = [when.strip() or "Time not set"]
-        if session.get("venue"):
-            details.append(session["venue"])
+        venue = session_venue(session)
+        if venue:
+            details.append(venue)
         details.append(f"score {result.score:.3f}")
         details.append(f"id {session['sessionId']}")
         blocks.append(
