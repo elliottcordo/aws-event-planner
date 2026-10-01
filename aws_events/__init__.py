@@ -34,6 +34,11 @@ from aws_events.errors import (
     FeatureDisabledError,
     SignInError,
 )
+from aws_events.schedule_optimizer import (
+    DayPlan,
+    PlannedSession,
+    optimize_schedule,
+)
 from aws_events.search import SEARCH_MODES, SearchResult, SessionSearch
 from aws_events.transport import HttpTransport
 from aws_events.vector_store import (
@@ -46,12 +51,14 @@ __all__ = [
     "SEARCH_MODES",
     "ApiError",
     "Authenticator",
+    "DayPlan",
     "EventsClient",
     "EventsError",
     "FastEmbedEmbeddings",
     "FeatureDisabledError",
     "HttpTransport",
     "PersonalTime",
+    "PlannedSession",
     "SearchResult",
     "SessionCatalog",
     "SessionFilter",
@@ -62,6 +69,7 @@ __all__ = [
     "chronological_key",
     "default_catalog_path",
     "default_index_path",
+    "optimize_schedule",
     "session_date",
     "session_start_time",
 ]

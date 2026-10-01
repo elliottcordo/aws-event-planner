@@ -1,5 +1,7 @@
 # AWS Event AMP
 
+![AWS Event AMP web app wearing the Microchip 2 skin](docs/screenshot.png)
+
 A small Python client for the [AWS Events API](https://api.awsevents.com/v1/openapi.json)
 attendee flow. Use it to browse events and sessions, manage your schedule
 (reservations, favorites and personal time), and search an event's full session
@@ -291,6 +293,41 @@ sign-in.
   schedule", or that a session is full, has already started, or isn't open for
   booking. The rest of the selection still goes through.
 
+### Schedule optimizer
+
+Click **Schedule optimizer** in My schedule to open a page that trims your
+favorites down to a day you can actually attend. **Back** returns to the main
+page. The page shows one table per day, side by side like a calendar, with your
+favorite and booked sessions in time order.
+
+Before changing anything, the page recommends you **Backup favorites**: it
+downloads a CSV of every current favorite (session ID, code, title, date, start
+time, length, venue, room, and whether it's booked).
+
+- **Max venues** (per day): 1 keeps you at one venue all day, 2 allows one move,
+  3 allows two, and so on; going back to a venue counts as a move too. Each
+  move must leave time to travel. Following AWS's advice to allow 30–45 minutes:
+  30 to walk between Venetian and Wynn/Encore, Caesars Forum or Caesars Palace,
+  or between the two Caesars venues; 45 by shuttle between Wynn/Encore and
+  either Caesars venue; 60 to or from MGM Grand. The table is `TRAVEL_MINUTES`
+  in `aws_events/schedule_optimizer.py`.
+- **Must attend**: ticked sessions are kept ahead of everything else. Booked
+  sessions show ✅ instead of a box: they are always kept and can't be unticked,
+  since the page doesn't cancel bookings. If two must-attend sessions clash,
+  the page says which one couldn't fit.
+- **Optimize schedule** keeps the largest set of sessions that fits these
+  rules. Each day notes its route, such as "1 move: Venetian → MGM Grand
+  (60 min travel)". Ties go to fewer moves, then less travel, then an earlier
+  finish. Optimizing again always starts from all your favorites, so you can
+  change the settings and rerun it.
+- **Start over** reloads every favorite and clears your choices.
+- **Apply to favorites** removes the favorites the optimizer left out, after
+  asking "Are you sure? N session(s) will be deleted from your favorites."
+  Booked sessions are never removed or cancelled.
+- **Book these sessions** books every kept session that isn't booked yet.
+
+Sessions without a time yet are left out of the grid and never removed.
+
 **Signing in.** The web app never starts a sign-in by itself. If you aren't
 signed in, or your saved sign-in has expired, My schedule shows a **Sign in**
 button, and **Add selected to favorites** is disabled. Search and filters work
@@ -391,6 +428,7 @@ aws_events/
     vector_store.py  SessionVectorStore and FastEmbedEmbeddings: semantic search index
     search.py        SessionSearch: keyword, semantic and hybrid search, with filters
     schedule.py      Group the attendee's schedule by day for display
+    schedule_optimizer.py  Pick the most sessions per day within venue and travel limits
     errors.py        EventsError, ApiError, SignInError
 web/
     app.py           FastAPI routes: pages and HTMX partials
@@ -398,12 +436,15 @@ web/
     skins.py         Winamp skin list (skins.json), download cache and .wsz reader
     jobs.py          Background jobs for sign-in and rebuilding the index
     views.py         Formatting for the templates
+    optimizer.py     The schedule optimizer page's day-by-day grid
     skins.json       The skins offered in the Skin menu
-    templates/       Jinja2 templates (index.html and the HTMX partials)
+    templates/       Jinja2 templates (base.html, index.html, optimizer.html and
+                     the HTMX partials)
     static/          app.css, skin.js (draws the skin), htmx.min.js (vendored HTMX 2.0.11)
 events_cli.py        Command-line interface
 events_web.py        Starts the web app
 tests/               Unit tests (no network or browser needed)
+docs/                Images used in this README
 data/                Downloaded catalogs, search indexes and skins (created on first use)
 ```
 

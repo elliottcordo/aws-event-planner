@@ -1,0 +1,10 @@
+<form hx-post="/skin" hx-trigger="change" class="skin-form">
+  <label>Skin
+    <select name="skin_id">
+      {% for skin in skins %}
+      <option value="{{ skin.id }}" {{ 'selected' if skin.id == skin_id }}>{{ skin.name }}{% if skin.year %} ({{ skin.year }}){% endif %}</option>
+      {% endfor %}
+      <option value="{{ no_skin }}" {{ 'selected' if skin_id == no_skin }}>No skin</option>
+    </select>
+  </label>
+</form>

@@ -1,0 +1,35 @@
+{# The page shell every page shares: head, skin colors on <body>, and the
+   confirm dialog. Pages fill in the content block. #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AWS Event AMP{% endblock %}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/skin.js" defer></script>
+</head>
+<body class="{{ 'skinned' if skin_style else 'plain' }}"
+  {% if skin_style %}
+  data-skin-url="/skins/{{ skin_id }}/"
+  style="--pl-text: {{ skin_style.text }}; --pl-normal: {{ skin_style.normal }}; --pl-current: {{ skin_style.current }}; --pl-normal-bg: {{ skin_style.normal_bg }}; --pl-selected-bg: {{ skin_style.selected_bg }}; --pl-font: '{{ skin_style.font }}';"
+  {% endif %}>
+
+{% block content %}{% endblock %}
+
+{# Replaces the browser's own confirm box, which always shows the page's
+   address ("127.0.0.1:8000 says:"); skin.js opens it for hx-confirm. #}
+<dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-dialog-title">
+  <form method="dialog">
+    <h2 id="confirm-dialog-title">AWS Event AMP</h2>
+    <p class="confirm-message"></p>
+    <div class="actions">
+      <button value="cancel">Cancel</button>
+      <button value="ok" class="primary" autofocus>OK</button>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

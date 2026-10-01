@@ -7,12 +7,13 @@ Run it with:
     python3 events_web.py
 """
 
+import datetime
 import re
 from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -21,6 +22,12 @@ from aws_events.client import MAX_SESSIONS_PER_REQUEST
 from aws_events.schedule import group_schedule_by_date
 from web import views
 from web.jobs import SUCCEEDED
+from web.optimizer import (
+    VENUE_CHOICES,
+    build_grid,
+    favorites_csv,
+    parse_max_venues,
+)
 from web.services import SIGN_IN_JOB, Services, rebuild_job_name
 from web.skins import SPRITE_SHEETS, SkinError
 
@@ -64,11 +71,8 @@ def create_app(services):
             return services.skins.default_skin_id
         return skin_id
 
-    # Pages
-
-    @app.get("/", response_class=HTMLResponse)
-    def index(request: Request, event_id: str = DEFAULT_EVENT_ID):
-        """Show the whole page."""
+    def page_context(request, event_id):
+        """Return the values every full page needs: the skin and the catalog."""
         check_event_id(event_id)
         skin_id = chosen_skin_id(request)
         skin_style = None
@@ -81,22 +85,37 @@ def create_app(services):
                 skin_id = NO_SKIN
 
         search = services.search_for(event_id)
-        catalog = search.catalog if search else None
+        return {
+            "event_id": event_id,
+            "catalog": search.catalog if search else None,
+            "skins": services.skins.skins(),
+            "skin_id": skin_id,
+            "no_skin": NO_SKIN,
+            "skin_style": skin_style,
+            "skin_problem": skin_problem,
+        }
+
+    # Pages
+
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request, event_id: str = DEFAULT_EVENT_ID):
+        """Show the whole page."""
+        context = page_context(request, event_id)
+        catalog = context["catalog"]
         return render(
             request, "index.html",
-            event_id=event_id,
-            catalog=catalog,
             venues=catalog.venues() if catalog else [],
             dates=catalog.dates() if catalog else [],
             format_day=views.format_day,
-            skins=services.skins.skins(),
-            skin_id=skin_id,
-            no_skin=NO_SKIN,
-            skin_style=skin_style,
-            skin_problem=skin_problem,
             legend=legend(),
             rebuild_job=services.jobs.get(rebuild_job_name(event_id)),
+            **context,
         )
+
+    @app.get("/optimizer", response_class=HTMLResponse)
+    def optimizer_page(request: Request, event_id: str = DEFAULT_EVENT_ID):
+        """Show the schedule optimizer page."""
+        return render(request, "optimizer.html", **page_context(request, event_id))
 
     @app.get("/sessions", response_class=HTMLResponse)
     def sessions(request: Request, event_id: str, venue: str = "", date: str = "",
@@ -175,6 +194,68 @@ def create_app(services):
             ]))
         return render(request, "_schedule.html", event_id=event_id, groups=groups,
                       problem=None, max_selection=MAX_SESSIONS_PER_REQUEST)
+
+    # Schedule optimizer
+
+    @app.get("/optimizer/grid", response_class=HTMLResponse)
+    def optimizer_grid_fresh(request: Request, event_id: str):
+        """Return the grid with every favorite, as if starting over."""
+        return render_optimizer_grid(request, event_id, must_attend_ids=set(),
+                                     max_venues_by_day={}, optimize=False)
+
+    @app.post("/optimizer/grid", response_class=HTMLResponse)
+    def optimizer_grid_refresh(request: Request, event_id: str = Form(...),
+                               optimized: str = Form("no"),
+                               must_attend: list[str] = Form(default=[]),
+                               max_venues: list[str] = Form(default=[])):
+        """Rebuild the grid from the current schedule, keeping the page's choices."""
+        return render_optimizer_grid(request, event_id, set(must_attend),
+                                     parse_max_venues(max_venues),
+                                     optimize=optimized == "yes")
+
+    @app.post("/optimizer/optimize", response_class=HTMLResponse)
+    def optimizer_optimize(request: Request, event_id: str = Form(...),
+                           must_attend: list[str] = Form(default=[]),
+                           max_venues: list[str] = Form(default=[])):
+        """Keep only the sessions the optimizer picks."""
+        return render_optimizer_grid(request, event_id, set(must_attend),
+                                     parse_max_venues(max_venues), optimize=True)
+
+    @app.get("/optimizer/favorites.csv")
+    def optimizer_favorites_csv(event_id: str):
+        """Download the attendee's current favorites as a CSV backup."""
+        check_event_id(event_id)
+        if not services.is_signed_in():
+            return PlainTextResponse("Sign in first to back up your favorites.",
+                                     status_code=401)
+        try:
+            schedule_data = services.client.get_schedule(event_id)
+        except EventsError as error:
+            return PlainTextResponse(f"Could not load your favorites: {error}",
+                                     status_code=502)
+        search = services.search_for(event_id)
+        catalog = search.catalog if search else None
+        filename = f"{event_id}-favorites-{datetime.date.today().isoformat()}.csv"
+        return Response(
+            favorites_csv(schedule_data, catalog), media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    @app.post("/optimizer/apply", response_class=HTMLResponse)
+    def optimizer_apply(request: Request, event_id: str = Form(...),
+                        remove_ids: list[str] = Form(default=[])):
+        """Remove the favorites the optimizer left out."""
+        return run_bulk_action(request, event_id, remove_ids,
+                               services.remove_favorites,
+                               "Removed {count} session(s) from favorites.")
+
+    @app.post("/optimizer/book", response_class=HTMLResponse)
+    def optimizer_book(request: Request, event_id: str = Form(...),
+                       book_ids: list[str] = Form(default=[])):
+        """Book every session the optimizer kept that isn't booked yet."""
+        return run_bulk_action(request, event_id, book_ids,
+                               services.reserve_sessions_in_batches,
+                               "Booked {count} session(s).")
 
     # Actions
 
@@ -300,6 +381,40 @@ def create_app(services):
         if result["successful"]:
             response.headers.update(SCHEDULE_CHANGED)
         return response
+
+    def render_optimizer_grid(request, event_id, must_attend_ids,
+                              max_venues_by_day, optimize):
+        """Render the optimizer grid, or a Sign in prompt.
+
+        Args:
+            request: The incoming request.
+            event_id: The event whose schedule to plan.
+            must_attend_ids: Session IDs ticked "must attend". Booked sessions
+                are always must attend.
+            max_venues_by_day: Dict of "YYYY-MM-DD" to venue limit.
+            optimize: Whether to keep only the sessions the optimizer picks.
+        """
+        check_event_id(event_id)
+        if not services.is_signed_in():
+            return render(request, "_optimizer_signed_out.html", event_id=event_id,
+                          sign_in_job=services.jobs.get(SIGN_IN_JOB))
+        try:
+            schedule_data = services.client.get_schedule(event_id)
+        except SignInError as error:
+            return render(request, "_optimizer_signed_out.html", event_id=event_id,
+                          problem=str(error),
+                          sign_in_job=services.jobs.get(SIGN_IN_JOB))
+        except EventsError as error:
+            return render(request, "_optimizer_grid.html", grid=None,
+                          problem=f"Could not load your schedule: {error}")
+
+        search = services.search_for(event_id)
+        catalog = search.catalog if search else None
+        grid = build_grid(schedule_data, catalog, must_attend_ids,
+                          max_venues_by_day, optimize)
+        return render(request, "_optimizer_grid.html", event_id=event_id,
+                      grid=grid, problem=None, venue_choices=VENUE_CHOICES,
+                      legend=legend())
 
     def current_schedule(event_id):
         """Return the schedule for the status icons, or an empty one on error."""

@@ -1,0 +1,5 @@
+{# Once sign-in succeeds the page fires scheduleChanged; load the grid then. #}
+<div hx-get="/optimizer/grid?event_id={{ event_id }}" hx-trigger="scheduleChanged from:body"
+  hx-target="#optimizer-grid">
+  {% include "_signed_out.html" %}
+</div>

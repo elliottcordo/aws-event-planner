@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_window.html" import window %}
+
+{% block title %}Schedule optimizer · AWS Event AMP{% endblock %}
+
+{% block content %}
+<header class="top">
+  {% if skin_style %}
+  {# Winamp's main window, without transport buttons: there are no filters here. #}
+  <div class="main-window">
+    <div class="main-title-bar" aria-hidden="true"></div>
+    <canvas class="bitmap-text marquee" aria-hidden="true"
+      data-text="{{ event_id }} *** schedule optimizer *** aws event amp *** "></canvas>
+  </div>
+  {% endif %}
+
+  <div class="toolbar">
+    <h1>AWS Event AMP</h1>
+    <div class="toolbar-row">
+      <form method="get" action="/">
+        <input type="hidden" name="event_id" value="{{ event_id }}">
+        <button type="submit">← Back</button>
+      </form>
+      {% include "_skin_form.html" %}
+    </div>
+    {% if skin_problem %}<p class="message warning">{{ skin_problem }}</p>{% endif %}
+  </div>
+</header>
+
+<main class="optimizer-pane">
+  {% call window("Schedule optimizer", "optimizer-window") %}
+    <p class="intro">Tick the sessions you <strong>must attend</strong> and pick how many
+      venues you're willing to visit each day, then optimize. The optimizer keeps as many
+      sessions as it can, leaving time to travel between venues. Booked sessions
+      ({{ RESERVED_ICON }}) are always kept.</p>
+    {% if catalog %}
+    {# Outside #optimizer-grid, so the message survives the grid reloading. #}
+    <div id="optimizer-message" class="action-message" aria-live="polite"></div>
+    <div id="optimizer-grid" hx-get="/optimizer/grid?event_id={{ event_id }}"
+      hx-trigger="load">Loading your schedule...</div>
+    {% else %}
+    {% include "_no_data.html" %}
+    {% endif %}
+  {% endcall %}
+</main>
+{% endblock %}

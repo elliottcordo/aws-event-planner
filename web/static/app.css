@@ -131,6 +131,42 @@ table.sessions .empty, table.sessions .more td { text-align: center; }
 }
 .skinned .confirm-dialog h2 { color: var(--pl-current); }
 
+/* ---------- Schedule optimizer ---------- */
+
+.optimizer-pane { padding: 0 24px 24px; }
+.intro { margin: 0 0 10px; max-width: 80ch; }
+/* One column per day, side by side like a calendar; they wrap when narrow. */
+.calendar {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px; margin: 8px 0;
+}
+.calendar-day { display: flex; flex-direction: column; min-width: 0; }
+.calendar-day-heading {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
+  padding-bottom: 6px;
+}
+.calendar-day-heading h3 { margin: 0; font-size: 15px; }
+.max-venues select { padding: 2px 6px; }
+/* Fixed layout keeps each table inside its day, however long the titles. */
+table.day-table { table-layout: fixed; }
+table.day-table th { position: static; }
+table.day-table th:nth-child(1) { width: 58px; }
+table.day-table th:nth-child(2) { width: 52px; }
+table.day-table td:first-child { text-align: center; }
+table.day-table .session { min-width: 0; max-width: none; overflow-wrap: anywhere; }
+table.day-table .when { font-size: 12px; font-weight: 700; }
+table.day-table .session .status { float: right; }
+table.day-table .session .meta { display: block; font-size: 12px; opacity: 0.8; }
+.day-note { margin: 6px 0 0; font-size: 12px; opacity: 0.85; }
+.backup { margin: 0 0 8px; }
+/* A download link that looks like the page's buttons. */
+a.button {
+  display: inline-block; padding: 5px 9px; font-size: 14px;
+  text-decoration: none; margin-left: 4px;
+}
+.locked { cursor: help; }
+.schedule-actions form { display: contents; }
+
 /* ---------- Plain look (no skin) ---------- */
 
 body.plain { background: #f4f5f7; color: #1f2328; }
@@ -142,11 +178,13 @@ body.plain { background: #f4f5f7; color: #1f2328; }
 .plain input, .plain select, .plain button {
   border: 1px solid #c4cad1; border-radius: 6px; background: #fff; color: inherit;
 }
+.plain a.button { border: 1px solid #c4cad1; border-radius: 6px; background: #fff; color: inherit; }
 .plain button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 .plain table.sessions th { background: #fff; border-bottom: 1px solid #d0d7de; }
 .plain table.sessions td { border-bottom: 1px solid #eaeef2; }
 .plain table.sessions tr:hover td { background: #f6f8fa; }
 .plain table.sessions tr:has(input:checked) td { background: #ddf4ff; }
+.plain .calendar-day { border: 1px solid #d0d7de; border-radius: 6px; padding: 8px; }
 .plain .message.error { color: #b42318; }
 .plain .message.success { color: #1a7f37; }
 .plain .message.warning { color: #9a6700; }
@@ -170,6 +208,9 @@ body.skinned {
   border-color: var(--pl-current);
 }
 .skinned a { color: var(--pl-current); }
+.skinned a.button {
+  background: var(--pl-normal-bg); color: var(--pl-text); border: 1px solid var(--pl-normal);
+}
 
 /* Winamp's main window, drawn at double size like Winamp's "double size" mode. */
 .main-window {
@@ -246,6 +287,9 @@ body.skinned {
 .skinned table.sessions tr.scheduled .session .title,
 .skinned #schedule h3,
 .skinned .schedule-list .time { color: var(--pl-current); }
+.skinned .calendar-day { border: 1px solid var(--pl-normal); padding: 8px; }
+.skinned .calendar-day-heading h3,
+.skinned table.day-table .when { color: var(--pl-current); }
 .skinned .message.error { color: #ff7b72; }
 .skinned .message.success { color: var(--pl-current); }
 .skinned .message.warning { color: #e3b341; }

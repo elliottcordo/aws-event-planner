@@ -1,0 +1,94 @@
+{% from "_status.html" import status %}
+{% if problem %}<p class="message error">{{ problem }}</p>{% endif %}
+{% if grid %}
+{# Action buttons post the whole form: the must-attend ticks, each day's venue
+   limit, and the session lists below. Messages go to #optimizer-message. #}
+<form id="optimizer-form" hx-target="#optimizer-message">
+  <input type="hidden" name="event_id" value="{{ event_id }}">
+  <input type="hidden" name="optimized" value="{{ 'yes' if grid.optimized else 'no' }}">
+  {% for session_id in grid.remove_ids %}<input type="hidden" name="remove_ids" value="{{ session_id }}">{% endfor %}
+  {% for session_id in grid.book_ids %}<input type="hidden" name="book_ids" value="{{ session_id }}">{% endfor %}
+  {# After favorites change or sessions are booked, rebuild the grid with the
+     same choices, so ticks and venue limits are kept. #}
+  <div hx-post="/optimizer/grid" hx-trigger="scheduleChanged from:body"
+    hx-target="#optimizer-grid" hidden></div>
+
+  <p class="backup">We recommend you back up your favorites first with
+    <a class="button" href="/optimizer/favorites.csv?event_id={{ event_id }}" download>Backup favorites</a>
+  </p>
+
+  <p class="summary">
+    {% if grid.optimized %}
+    Optimized: keeping {{ grid.kept_count() }} of {{ grid.total_count }} sessions.
+    {% else %}
+    {{ grid.total_count }} sessions from your favorites and bookings.
+    {% endif %}
+    {% if grid.unplanned_count %}{{ grid.unplanned_count }} without a time are left as they are.{% endif %}
+  </p>
+  {% if grid.missed_must_attend %}
+  <p class="message warning">Could not fit these must-attend sessions, as they clash with
+    other must-attend sessions: {{ grid.missed_must_attend | join(", ") }}.</p>
+  {% endif %}
+
+  <div class="calendar">
+    {% for day in grid.days %}
+    <section class="calendar-day" aria-labelledby="day-{{ day.day }}">
+      <div class="calendar-day-heading">
+        <h3 id="day-{{ day.day }}">{{ day.label }}</h3>
+        <label class="max-venues">Max venues
+          <select name="max_venues">
+            {% for count in venue_choices %}
+            <option value="{{ day.day }}:{{ count }}" {{ 'selected' if count == day.max_venues }}>{{ count }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <table class="sessions day-table">
+        <thead>
+          <tr><th>Must attend</th><th>Time</th><th>Session</th></tr>
+        </thead>
+        <tbody>
+          {% for row in day.rows %}
+          <tr>
+            {# Booked sessions are always kept; the page can't cancel bookings. #}
+            <td>{% if row.locked %}<span class="locked" title="Booked: always kept">{{ RESERVED_ICON }}<span
+              class="visually-hidden">Booked, must attend</span></span>{% else %}<input type="checkbox"
+              name="must_attend" value="{{ row.id }}"{{ ' checked' if row.must_attend }}
+              aria-label="Must attend {{ row.title }}">{% endif %}</td>
+            <td class="when">{{ row.start }}<br>{{ row.end }}</td>
+            <td class="session" title="{{ row.abstract }}">
+              {{ status(row.reserved, row.favorite) }}
+              {% if row.code %}<span class="code">{{ row.code }}</span>{% endif %}
+              <span class="title">{{ row.title }}</span>
+              <span class="meta">{{ row.venue }}</span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="empty">No sessions kept.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if day.note %}<p class="day-note">{{ day.note }}</p>{% endif %}
+    </section>
+    {% else %}
+    <p>No favorites or bookings with a time yet. Go back and add some favorites first.</p>
+    {% endfor %}
+  </div>
+  <p class="legend">{{ legend }}</p>
+
+  {% set remove_count = grid.remove_ids | length %}
+  {% set book_count = grid.book_ids | length %}
+  <div class="actions">
+    <button type="button" class="primary" hx-post="/optimizer/optimize"
+      hx-target="#optimizer-grid" {{ 'disabled' if not grid.days }}>Optimize schedule</button>
+    <button type="button" hx-get="/optimizer/grid?event_id={{ event_id }}"
+      hx-target="#optimizer-grid">Start over</button>
+    <button type="button" hx-post="/optimizer/apply" {{ 'disabled' if not remove_count }}
+      hx-confirm="Are you sure? {{ remove_count }} session(s) will be deleted from your favorites."
+      >Apply to favorites{% if remove_count %} (remove {{ remove_count }}){% endif %}</button>
+    <button type="button" hx-post="/optimizer/book" {{ 'disabled' if not book_count }}
+      hx-confirm="Book {{ book_count }} session(s)?"
+      >Book these sessions{% if book_count %} ({{ book_count }}){% endif %}</button>
+  </div>
+</form>
+{% endif %}

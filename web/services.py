@@ -20,6 +20,7 @@ from aws_events import (
     default_catalog_path,
     default_index_path,
 )
+from aws_events.client import MAX_SESSIONS_PER_REQUEST
 from web.jobs import JobBoard
 from web.skins import SkinRegistry
 
@@ -123,6 +124,21 @@ class Services:
                 failed.append({"sessionId": session_id, "code": code})
             else:
                 successful.append(session_id)
+        return {"successful": successful, "failed": failed}
+
+    def reserve_sessions_in_batches(self, event_id, session_ids):
+        """Reserve any number of sessions, at most 10 per API call.
+
+        Returns:
+            A dict with "successful" and "failed" lists for all the calls.
+        """
+        successful = []
+        failed = []
+        for start in range(0, len(session_ids), MAX_SESSIONS_PER_REQUEST):
+            batch = session_ids[start:start + MAX_SESSIONS_PER_REQUEST]
+            result = self.client.reserve_sessions(event_id, batch)
+            successful.extend(result["successful"])
+            failed.extend(result["failed"])
         return {"successful": successful, "failed": failed}
 
     def is_signed_in(self):

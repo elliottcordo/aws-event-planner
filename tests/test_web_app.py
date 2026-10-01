@@ -437,6 +437,152 @@ class BookingTests(WebAppTestCase):
         self.assertEqual(schedule.count('name="session_ids"'), 2)
 
 
+class OptimizerTests(WebAppTestCase):
+    """The schedule optimizer page."""
+
+    def setUp(self):
+        """Favorite all three sample sessions; s2 and s3 share 2 Dec."""
+        super().setUp()
+        self.transport.schedule = {
+            "reserved": [], "favorites": ["s1", "s2", "s3"], "personalTime": [],
+        }
+
+    def test_schedule_panel_links_to_optimizer(self):
+        """The schedule panel has a Schedule optimizer button."""
+        schedule = self.client.get("/schedule", params={"event_id": EVENT}).text
+        self.assertIn('action="/optimizer"', schedule)
+        self.assertIn("Schedule optimizer", schedule)
+
+    def test_page_is_skinned_with_back_button(self):
+        """The page wears the skin and has a Back button to the main page."""
+        response = self.client.get("/optimizer", params={"event_id": EVENT})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('class="skinned"', response.text)
+        self.assertIn('action="/"', response.text)
+        self.assertIn("Back", response.text)
+        self.assertIn('hx-get="/optimizer/grid?event_id=reinvent2026"', response.text)
+
+    def test_page_without_skin(self):
+        """With "No skin" the page is plain and has no Winamp main window."""
+        self.client.cookies.set(SKIN_COOKIE, "none")
+        response = self.client.get("/optimizer", params={"event_id": EVENT})
+        self.assertIn('class="plain"', response.text)
+        self.assertNotIn("main-window", response.text)
+
+    def test_fresh_grid_has_one_table_per_day(self):
+        """Each day gets a table with a venue limit and must-attend boxes."""
+        text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
+        self.assertEqual(text.count('class="calendar-day"'), 2)
+        self.assertEqual(text.count('name="must_attend"'), 3)
+        self.assertIn('<option value="2026-12-02:2" selected>', text)
+        self.assertIn('value="no"', text)
+        self.assertIn("Apply to favorites</button>", text)
+
+    def test_optimize_keeps_the_best_sessions(self):
+        """With 1 venue on 2 Dec, one session goes and is offered for removal."""
+        response = self.client.post("/optimizer/optimize", data={
+            "event_id": EVENT, "max_venues": ["2026-12-02:1"],
+        })
+        text = response.text
+        self.assertIn("keeping 2 of 3 sessions", text)
+        self.assertIn('name="remove_ids" value="s3"', text)
+        self.assertNotIn('value="s3" aria-label', text)
+        self.assertIn("Stays at Venetian", text)
+        self.assertIn("1 session(s) will be deleted from your favorites", text)
+        self.assertIn('<option value="2026-12-02:1" selected>', text)
+
+    def test_refresh_keeps_choices(self):
+        """Rebuilding after a change keeps the ticks and the optimized state."""
+        response = self.client.post("/optimizer/grid", data={
+            "event_id": EVENT, "optimized": "yes", "must_attend": ["s3"],
+            "max_venues": ["2026-12-02:1"],
+        })
+        self.assertIn('name="remove_ids" value="s2"', response.text)
+        self.assertIn('value="s3" checked', response.text)
+
+    def test_apply_removes_only_dropped_favorites(self):
+        """Apply deletes the listed favorites and asks the page to refresh."""
+        response = self.client.post("/optimizer/apply", data={
+            "event_id": EVENT, "remove_ids": ["s3"],
+        })
+        deletes = [r for r in self.transport.requests if r["method"] == "DELETE"]
+        self.assertEqual([r["url"].rsplit("/", 1)[-1] for r in deletes], ["s3"])
+        self.assertIn("Removed 1 session(s) from favorites.", response.text)
+        self.assertEqual(response.headers["HX-Trigger"], "scheduleChanged")
+
+    def test_book_sends_batches_of_ten(self):
+        """Booking more than ten sessions splits them over several calls."""
+        ids = [f"x{number}" for number in range(12)]
+        self.transport.responses.extend([
+            {"result": {"successful": ids[:10], "failed": []}},
+            {"result": {"successful": ids[10:], "failed": []}},
+        ])
+        response = self.client.post("/optimizer/book", data={
+            "event_id": EVENT, "book_ids": ids,
+        })
+        posts = [r for r in self.transport.requests if r["method"] == "POST"]
+        self.assertEqual([len(r["json_body"]["sessionIds"]) for r in posts], [10, 2])
+        self.assertIn("Booked 12 session(s).", response.text)
+
+    def test_grid_recommends_a_backup(self):
+        """The grid suggests backing up favorites, with a download link."""
+        text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
+        self.assertIn("We recommend you back up your favorites first", text)
+        self.assertIn('href="/optimizer/favorites.csv?event_id=reinvent2026" download',
+                      text)
+
+    def test_booked_sessions_are_locked(self):
+        """A booked session shows ✅ instead of a must-attend box."""
+        self.transport.schedule = {
+            "reserved": ["s3"], "favorites": ["s1", "s2"], "personalTime": [],
+        }
+        text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
+        self.assertEqual(text.count('name="must_attend"'), 2)
+        self.assertNotIn('name="must_attend" value="s3"', text)
+        self.assertIn('title="Booked: always kept"', text)
+
+    def test_booked_session_kept_even_if_unticked(self):
+        """Optimizing with 1 venue keeps the booked s3 over the favorite s2."""
+        self.transport.schedule = {
+            "reserved": ["s3"], "favorites": ["s1", "s2"], "personalTime": [],
+        }
+        response = self.client.post("/optimizer/optimize", data={
+            "event_id": EVENT, "max_venues": ["2026-12-02:1"],
+        })
+        self.assertIn('name="remove_ids" value="s2"', response.text)
+        self.assertIn("Stays at MGM Grand", response.text)
+
+    def test_favorites_csv_download(self):
+        """The backup is a CSV attachment listing every favorite."""
+        response = self.client.get("/optimizer/favorites.csv",
+                                   params={"event_id": EVENT})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("text/csv"))
+        self.assertIn('attachment; filename="reinvent2026-favorites-',
+                      response.headers["content-disposition"])
+        lines = response.text.splitlines()
+        self.assertTrue(lines[0].startswith("session_id,code,title"))
+        self.assertEqual([line.split(",")[0] for line in lines[1:]],
+                         ["s1", "s2", "s3"])
+
+    def test_favorites_csv_needs_sign_in(self):
+        """Signed out, the backup explains why and doesn't call the API."""
+        self.authenticator.signed_in = False
+        response = self.client.get("/optimizer/favorites.csv",
+                                   params={"event_id": EVENT})
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("Sign in first", response.text)
+        self.assertEqual(self.transport.requests, [])
+
+    def test_signed_out_grid_offers_sign_in(self):
+        """Signed out, the grid asks to sign in and reloads once signed in."""
+        self.authenticator.signed_in = False
+        text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
+        self.assertIn('hx-post="/sign-in"', text)
+        self.assertIn("scheduleChanged from:body", text)
+        self.assertEqual(self.transport.requests, [])
+
+
 class RebuildTests(WebAppTestCase):
     """Downloading and indexing an event from the page."""
 

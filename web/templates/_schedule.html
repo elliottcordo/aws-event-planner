@@ -2,6 +2,10 @@
 <div class="schedule-actions">
   <button type="button" hx-get="/schedule?event_id={{ event_id }}" hx-target="#schedule">Refresh</button>
   <button type="button" hx-post="/sign-out" hx-swap="none">Sign out</button>
+  <form method="get" action="/optimizer">
+    <input type="hidden" name="event_id" value="{{ event_id }}">
+    <button type="submit" class="primary">Schedule optimizer</button>
+  </form>
 </div>
 {% if problem %}<p class="message error">{{ problem }}</p>{% endif %}
 {% if groups %}
