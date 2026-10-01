@@ -7,3 +7,6 @@ __pycache__/
 
 # Downloaded session catalogs and search indexes
 data/
+
+# Built macOS app (make_mac_app.py)
+dist/

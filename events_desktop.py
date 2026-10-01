@@ -30,6 +30,11 @@ STATIC_DIRECTORY = Path(__file__).resolve().parent / "web" / "static"
 # when no skin is chosen.
 DRAG_REGION_SELECTOR = ".main-title-bar, .toolbar h1"
 SERVER_START_TIMEOUT_SECONDS = 10
+MAX_WINDOW_SIZE = (1600, 1000)
+# Narrower than 1000 pixels, the Sessions and My schedule panels stack.
+MIN_WINDOW_SIZE = (1100, 700)
+# Room left around the window for the menu bar and Dock (or taskbar).
+SCREEN_MARGIN = 80
 
 
 class WindowControls:
@@ -86,12 +91,27 @@ def free_port():
         return probe.getsockname()[1]
 
 
-def window_options():
+def window_size(screen_width, screen_height):
+    """Return a (width, height) that fills most of a screen of the given size.
+
+    The page fits itself to the window, so a taller window shows more of each
+    list. The window is never smaller than MIN_WINDOW_SIZE, below which the two
+    panels would stack.
+    """
+    max_width, max_height = MAX_WINDOW_SIZE
+    min_width, min_height = MIN_WINDOW_SIZE
+    width = min(max_width, screen_width - SCREEN_MARGIN)
+    height = min(max_height, screen_height - SCREEN_MARGIN)
+    return max(width, min_width), max(height, min_height)
+
+
+def window_options(screen_width, screen_height):
     """Return the pywebview create_window settings for the player window."""
+    width, height = window_size(screen_width, screen_height)
     return {
-        "width": 1440,
-        "height": 900,
-        "min_size": (900, 600),
+        "width": width,
+        "height": height,
+        "min_size": MIN_WINDOW_SIZE,
         "frameless": True,
         # Drag only by the title bar, so clicks and text selection still work.
         "easy_drag": False,
@@ -131,8 +151,10 @@ def main():
 
     webview.settings["ALLOW_DOWNLOADS"] = True  # For "Backup favorites".
     webview.settings["DRAG_REGION_SELECTOR"] = DRAG_REGION_SELECTOR
+    screen = webview.screens[0]
     window = webview.create_window(
-        WINDOW_TITLE, f"http://127.0.0.1:{port}/", **window_options()
+        WINDOW_TITLE, f"http://127.0.0.1:{port}/",
+        **window_options(screen.width, screen.height),
     )
     controls = WindowControls(window)
     window.expose(controls.minimize, controls.close)

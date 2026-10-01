@@ -180,6 +180,28 @@ a.button {
   width: 9px; height: 9px; padding: 0; border: 0; background: transparent; font-size: 0;
 }
 
+/* The page fills the desktop window exactly, so the window itself never
+   scrolls: each panel stretches to the bottom and only its list scrolls. In a
+   browser tab the page keeps its normal height. */
+body.desktop { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.desktop .top { flex: none; }
+.desktop .panes,
+.desktop .optimizer-pane { flex: 1; min-height: 0; }
+.desktop .panes { grid-template-rows: minmax(0, 1fr); }
+.desktop .optimizer-pane { display: flex; flex-direction: column; }
+.desktop .pl-window { min-height: 0; flex: 1; }
+.desktop .pl-body { display: flex; flex-direction: column; min-height: 0; }
+.desktop #results,
+.desktop #sessions-form,
+.desktop #optimizer-grid,
+.desktop #optimizer-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.desktop .table-scroll { flex: 1; min-height: 0; max-height: none; }
+.desktop .calendar { flex: 1; min-height: 0; overflow-y: auto; align-content: start; }
+/* In a short window the double-size main window would crowd out the lists. */
+@media (max-height: 820px) {
+  .desktop .main-window { zoom: 1.5; }
+}
+
 /* ---------- Plain look (no skin) ---------- */
 
 body.plain { background: #f4f5f7; color: #1f2328; }

@@ -10,6 +10,7 @@ from events_desktop import (
     free_port,
     start_server,
     window_options,
+    window_size,
 )
 
 
@@ -56,10 +57,19 @@ class WindowOptionsTests(unittest.TestCase):
 
     def test_frameless_but_usable(self):
         """No frame, dragged only by the title bar, and text can be selected."""
-        options = window_options()
+        options = window_options(1512, 982)
         self.assertTrue(options["frameless"])
         self.assertFalse(options["easy_drag"])
         self.assertTrue(options["text_select"])
+
+    def test_window_fills_most_of_the_screen(self):
+        """The window leaves a margin on a laptop screen and is capped on big ones."""
+        self.assertEqual(window_size(1512, 982), (1432, 902))
+        self.assertEqual(window_size(2560, 1440), (1600, 1000))
+
+    def test_window_never_smaller_than_minimum(self):
+        """On a small screen the window keeps its minimum size."""
+        self.assertEqual(window_size(1024, 700), (1100, 700))
 
 
 class AppIconTests(unittest.TestCase):
