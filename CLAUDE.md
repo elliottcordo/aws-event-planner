@@ -12,6 +12,7 @@ It uses only the Python standard library and the following third party dependenc
 * pylint
 * langchain-core, fastembed, rank-bm25 (session search; see `requirements.txt`)
 * fastapi, uvicorn, jinja2, python-multipart (web UI); httpx (tests only)
+* pywebview (desktop window, `events_desktop.py`)
 
 Do not add additonal third-party dependencies without asking first.
 The web UI's only JavaScript library is HTMX 2.0.11, vendored in `web/static/htmx.min.js`;

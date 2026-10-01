@@ -7,13 +7,15 @@ attendee flow. Use it to browse events and sessions, manage your schedule
 (reservations, favorites and personal time), and search an event's full session
 catalog by keyword, by meaning, or both.
 
-It has three parts:
+It has four parts:
 
 - **`aws_events/`**: a Python package with the API client, AWS Builder ID sign-in,
   and session search. Use it from your own code.
 - **`events_cli.py`**: a command-line interface on top of that package.
 - **`events_web.py`**: a web app (FastAPI + HTMX) for searching sessions and
   building your favorites list, which can wear classic Winamp skins.
+- **`events_desktop.py`**: the same web app in its own desktop window, like a
+  Winamp player.
 
 ## Setup
 
@@ -269,6 +271,34 @@ Then open <http://127.0.0.1:8000>. Use `--port` to pick another port. The app
 listens only on your own machine, because it acts with your AWS Builder ID
 sign-in.
 
+**As a desktop app.** To use it in its own window instead of a browser tab:
+
+```bash
+python3 events_desktop.py
+```
+
+It opens a frameless window (using [pywebview](https://pywebview.flowrl.com/)
+and your system's web engine), so the skin's Winamp title bar is the window's
+title bar. Drag the title bar to move the window, and use its minimize and close
+buttons. With "No skin", drag the "AWS Event AMP" heading instead, and use the
+– and × buttons at the top right. **Backup favorites** asks where to save the
+file. The app picks a free local port each time, so it won't clash with
+`events_web.py`.
+
+**Name and icon.** Run as `python3 events_desktop.py`, macOS shows the app in
+the Dock as "python3.12", because that's the program running. To get "AWS
+Event AMP" with its lightning-bolt icon, build a small app bundle once:
+
+```bash
+python3 make_mac_app.py
+```
+
+Then double-click `dist/AWS Event AMP.app`, or drag it to Applications or the
+Dock. The bundle runs this project's `venv`, so rebuild it if you move the
+project. On Windows, `events_desktop.py` gives itself its own taskbar identity
+and uses `web/static/app-icon.ico`, so the taskbar should show "AWS Event AMP"
+with that icon; this hasn't been tested on Windows yet.
+
 - **Top:** choose the event (default `reinvent2026`) and a skin.
   **Download data and rebuild index** runs `download-sessions` and
   `build-index` for you. Use it the first time, and whenever you want the latest
@@ -443,6 +473,8 @@ web/
     static/          app.css, skin.js (draws the skin), htmx.min.js (vendored HTMX 2.0.11)
 events_cli.py        Command-line interface
 events_web.py        Starts the web app
+events_desktop.py    Starts the web app in a desktop window
+make_mac_app.py      Builds dist/AWS Event AMP.app for macOS
 tests/               Unit tests (no network or browser needed)
 docs/                Images used in this README
 data/                Downloaded catalogs, search indexes and skins (created on first use)

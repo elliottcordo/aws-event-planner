@@ -302,6 +302,33 @@ function confirmWithDialog(event) {
   });
 }
 
+// The desktop app (events_desktop.py) shows the page in a window without a
+// frame, so it adds minimize and close buttons. With a skin they sit over the
+// buttons drawn in the skin's title bar; without one they show at the top.
+const WINDOW_ACTIONS = [["minimize", "Minimize", "–"], ["close", "Close", "×"]];
+
+function addWindowControls() {
+  if (document.querySelector(".window-controls")) {
+    return;
+  }
+  const controls = document.createElement("div");
+  controls.className = "window-controls";
+  for (const [action, label, symbol] of WINDOW_ACTIONS) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.textContent = symbol;
+    button.addEventListener("click", () => window.pywebview.api[action]());
+    controls.append(button);
+  }
+  const mainWindow = document.querySelector(".main-window");
+  (mainWindow || document.body).append(controls);
+}
+
+// pywebview fires this once window.pywebview.api is ready to use.
+window.addEventListener("pywebviewready", addWindowControls);
+
 document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener("htmx:confirm", confirmWithDialog);
   applySkin();
