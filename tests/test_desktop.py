@@ -30,6 +30,22 @@ class FakeWindow:
         self.actions.append("destroy")
 
 
+class FakeTimer:
+    """Stand in for threading.Timer, recording instead of waiting."""
+
+    def __init__(self, delay, action, timers):
+        """Store the delay and action, and add this timer to `timers`."""
+        self.delay = delay
+        self.action = action
+        self.daemon = False
+        self.started = False
+        timers.append(self)
+
+    def start(self):
+        """Record that the timer was started."""
+        self.started = True
+
+
 async def hello_app(scope, receive, send):
     """Answer every HTTP request with "hello" (a minimal ASGI app)."""
     if scope["type"] != "http":
@@ -43,13 +59,29 @@ async def hello_app(scope, receive, send):
 class WindowControlsTests(unittest.TestCase):
     """The title-bar buttons."""
 
-    def test_minimize_and_close(self):
-        """Minimize and close act on the window."""
+    def test_minimize(self):
+        """Minimize acts on the window straight away."""
         window = FakeWindow()
-        controls = WindowControls(window)
-        controls.minimize()
+        WindowControls(window).minimize()
+        self.assertEqual(window.actions, ["minimize"])
+
+    def test_close_waits_until_the_call_has_returned(self):
+        """Close returns first and destroys the window from a daemon timer.
+
+        Destroying it during the call would leave pywebview waiting forever to
+        send the result to a page that is gone, so the app would never quit.
+        """
+        window = FakeWindow()
+        timers = []
+        controls = WindowControls(window, start_timer=lambda delay, action:
+                                  FakeTimer(delay, action, timers))
         controls.close()
-        self.assertEqual(window.actions, ["minimize", "destroy"])
+        self.assertEqual(window.actions, [])
+        self.assertEqual(len(timers), 1)
+        self.assertTrue(timers[0].started)
+        self.assertTrue(timers[0].daemon)
+        timers[0].action()
+        self.assertEqual(window.actions, ["destroy"])
 
 
 class WindowOptionsTests(unittest.TestCase):

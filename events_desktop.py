@@ -30,6 +30,8 @@ STATIC_DIRECTORY = Path(__file__).resolve().parent / "web" / "static"
 # when no skin is chosen.
 DRAG_REGION_SELECTOR = ".main-title-bar, .toolbar h1"
 SERVER_START_TIMEOUT_SECONDS = 10
+# Long enough for pywebview to answer the page's close() call before it goes.
+CLOSE_DELAY_SECONDS = 0.2
 MAX_WINDOW_SIZE = (1600, 1000)
 # Narrower than 1000 pixels, the Sessions and My schedule panels stack.
 MIN_WINDOW_SIZE = (1100, 700)
@@ -38,23 +40,36 @@ SCREEN_MARGIN = 80
 
 
 class WindowControls:
-    """Window actions for the skin's title-bar buttons.
+    """Window actions for the minimize and close buttons in the window's corner.
 
     main() exposes minimize and close to the page, which calls them as
     window.pywebview.api.minimize() and window.pywebview.api.close().
     """
 
-    def __init__(self, window):
-        """Act on the given pywebview window."""
+    def __init__(self, window, start_timer=threading.Timer):
+        """Act on the given pywebview window.
+
+        Args:
+            window: The pywebview Window.
+            start_timer: Makes a timer, like threading.Timer; tests pass a fake.
+        """
         self.window = window
+        self.start_timer = start_timer
 
     def minimize(self):
         """Minimize the window."""
         self.window.minimize()
 
     def close(self):
-        """Close the window, which also quits the app."""
-        self.window.destroy()
+        """Close the window shortly, which also quits the app.
+
+        pywebview sends this call's result back to the page once it returns.
+        If the window were already gone, that would wait forever and keep the
+        app from quitting, so the window closes just after this returns.
+        """
+        timer = self.start_timer(CLOSE_DELAY_SECONDS, self.window.destroy)
+        timer.daemon = True
+        timer.start()
 
 
 def set_app_identity(name):

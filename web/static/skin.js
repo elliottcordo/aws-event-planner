@@ -304,8 +304,7 @@ function confirmWithDialog(event) {
 
 // The desktop app (events_desktop.py) shows the page in a window without a
 // frame, so the page fits itself to the window and adds minimize and close
-// buttons. With a skin they sit over the buttons drawn in the skin's title
-// bar; without one they show at the top.
+// buttons in the window's top-right corner.
 const WINDOW_ACTIONS = [["minimize", "Minimize", "–"], ["close", "Close", "×"]];
 
 function setUpDesktopWindow() {
@@ -324,8 +323,7 @@ function setUpDesktopWindow() {
     button.addEventListener("click", () => window.pywebview.api[action]());
     controls.append(button);
   }
-  const mainWindow = document.querySelector(".main-window");
-  (mainWindow || document.body).append(controls);
+  document.body.append(controls);
 }
 
 // pywebview fires this once window.pywebview.api is ready to use.

@@ -170,15 +170,9 @@ a.button {
 /* ---------- Desktop app (events_desktop.py) ---------- */
 
 .window-controls {
-  position: fixed; top: 8px; right: 12px; z-index: 10; display: flex; gap: 4px;
+  position: fixed; top: 6px; right: 8px; z-index: 10; display: flex; gap: 4px;
 }
-.window-controls button { padding: 0 9px; }
-/* Over the minimize and close buttons in the skin's title bar (Winamp 2
-   layout: 9x9 pixels at x=244 and x=264), which the sprite already draws. */
-.main-window .window-controls { position: absolute; top: 3px; right: auto; left: 244px; gap: 11px; }
-.skinned .main-window .window-controls button {
-  width: 9px; height: 9px; padding: 0; border: 0; background: transparent; font-size: 0;
-}
+.window-controls button { min-width: 30px; padding: 0 8px; font-size: 18px; line-height: 26px; }
 
 /* The page fills the desktop window exactly, so the window itself never
    scrolls: each panel stretches to the bottom and only its list scrolls. In a
