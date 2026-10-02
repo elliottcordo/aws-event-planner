@@ -109,8 +109,10 @@ def describe_moves(plan):
     for _, to_venue in plan.moves:
         stops.append(venue_name(to_venue))
     move_word = "move" if len(plan.moves) == 1 else "moves"
-    return (f"{len(plan.moves)} {move_word}: {' → '.join(stops)} "
-            f"({plan.travel_minutes} min travel)")
+    return (
+        f"{len(plan.moves)} {move_word}: {' → '.join(stops)} "
+        f"({plan.travel_minutes} min travel)"
+    )
 
 
 def optimizer_row(entry, planned):
@@ -216,8 +218,15 @@ def add_day(grid, day, entries, planned_by_id, max_venues, catalog):
 
 
 CSV_COLUMNS = [
-    "session_id", "code", "title", "date", "start_time", "length_minutes",
-    "venue", "room", "booked",
+    "session_id",
+    "code",
+    "title",
+    "date",
+    "start_time",
+    "length_minutes",
+    "venue",
+    "room",
+    "booked",
 ]
 
 

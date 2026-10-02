@@ -14,8 +14,9 @@ class FakeTransport:
         self.responses = list(responses)
         self.requests = []
 
-    def request(self, method, url, params=None, json_body=None, form=None,
-                headers=None):
+    def request(
+        self, method, url, params=None, json_body=None, form=None, headers=None
+    ):
         """Record the request and return the next canned response.
 
         Like `requests`, query parameters set to None are left out; the rest
@@ -27,13 +28,15 @@ class FakeTransport:
                 present_params[name] = value
         if present_params:
             url = f"{url}?{urllib.parse.urlencode(present_params)}"
-        self.requests.append({
-            "method": method,
-            "url": url,
-            "json_body": json_body,
-            "form": form,
-            "headers": headers or {},
-        })
+        self.requests.append(
+            {
+                "method": method,
+                "url": url,
+                "json_body": json_body,
+                "form": form,
+                "headers": headers or {},
+            }
+        )
         if not self.responses:
             return None
         response = self.responses.pop(0)

@@ -26,20 +26,24 @@ def make_wsz(files):
     return buffer.getvalue()
 
 
-BASE_WSZ = make_wsz({
-    "main.bmp": b"base-main",
-    "pledit.bmp": b"base-pledit",
-    "titlebar.bmp": b"base-titlebar",
-    "text.bmp": b"base-text",
-    "cbuttons.bmp": b"base-cbuttons",
-    "pledit.txt": b"[Text]\r\nNormal=#00FF00\r\nNormalBG=#000000\r\n",
-    "viscolor.txt": b"10,20,30, // background\r\n",
-})
+BASE_WSZ = make_wsz(
+    {
+        "main.bmp": b"base-main",
+        "pledit.bmp": b"base-pledit",
+        "titlebar.bmp": b"base-titlebar",
+        "text.bmp": b"base-text",
+        "cbuttons.bmp": b"base-cbuttons",
+        "pledit.txt": b"[Text]\r\nNormal=#00FF00\r\nNormalBG=#000000\r\n",
+        "viscolor.txt": b"10,20,30, // background\r\n",
+    }
+)
 # A skin with its files in a subfolder, no pledit.txt and no cbuttons.bmp.
-PARTIAL_WSZ = make_wsz({
-    "Partial Skin/MAIN.BMP": b"partial-main",
-    "Partial Skin/pledit.bmp": b"partial-pledit",
-})
+PARTIAL_WSZ = make_wsz(
+    {
+        "Partial Skin/MAIN.BMP": b"partial-main",
+        "Partial Skin/pledit.bmp": b"partial-pledit",
+    }
+)
 
 
 class PleditTests(unittest.TestCase):
@@ -58,24 +62,18 @@ class PleditTests(unittest.TestCase):
 
     def test_bad_values_fall_back_to_defaults(self):
         """Invalid colors and fonts that could inject CSS are ignored."""
-        style = parse_pledit_txt(
-            "Normal=red\nFont=Arial; } body { display: none\n"
-        )
+        style = parse_pledit_txt("Normal=red\nFont=Arial; } body { display: none\n")
         self.assertEqual(style["normal"], "#00FF00")
         self.assertEqual(style["font"], "Arial")
 
     def test_text_color_is_readable(self):
         """Low-contrast normal text is swapped for the current color."""
-        style = parse_pledit_txt(
-            "Normal=#800000\nCurrent=#C0C0C0\nNormalBG=#000000\n"
-        )
+        style = parse_pledit_txt("Normal=#800000\nCurrent=#C0C0C0\nNormalBG=#000000\n")
         self.assertEqual(style["text"], "#C0C0C0")
 
     def test_text_color_falls_back_to_white_or_black(self):
         """If neither skin color is readable, white or black is used."""
-        style = parse_pledit_txt(
-            "Normal=#111111\nCurrent=#222222\nNormalBG=#000000\n"
-        )
+        style = parse_pledit_txt("Normal=#111111\nCurrent=#222222\nNormalBG=#000000\n")
         self.assertEqual(style["text"], "#FFFFFF")
 
     def test_contrast_ratio(self):
@@ -134,14 +132,26 @@ class SkinRegistryTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.directory = Path(directory.name)
         self.registry_path = self.directory / "skins.json"
-        self.registry_path.write_text(json.dumps({
-            "default_skin": "base",
-            "skins": [
-                {"id": "base", "name": "Base", "url": "https://skins.test/base.wsz"},
-                {"id": "partial", "name": "Partial", "year": 2001,
-                 "url": "https://skins.test/partial.wsz"},
-            ],
-        }))
+        self.registry_path.write_text(
+            json.dumps(
+                {
+                    "default_skin": "base",
+                    "skins": [
+                        {
+                            "id": "base",
+                            "name": "Base",
+                            "url": "https://skins.test/base.wsz",
+                        },
+                        {
+                            "id": "partial",
+                            "name": "Partial",
+                            "year": 2001,
+                            "url": "https://skins.test/partial.wsz",
+                        },
+                    ],
+                }
+            )
+        )
         self.downloads = []
 
     def fake_download(self, url):
@@ -151,8 +161,9 @@ class SkinRegistryTests(unittest.TestCase):
 
     def make_registry(self):
         """Return a registry using the fake download and a temp cache."""
-        return SkinRegistry(self.registry_path, self.directory / "cache",
-                            download=self.fake_download)
+        return SkinRegistry(
+            self.registry_path, self.directory / "cache", download=self.fake_download
+        )
 
     def test_lists_skins_in_order(self):
         """skins() keeps the file's order and reads optional fields."""
@@ -171,8 +182,9 @@ class SkinRegistryTests(unittest.TestCase):
         """A missing sheet and missing pledit.txt come from the base skin."""
         registry = self.make_registry()
         self.assertEqual(registry.sprite_sheet("partial", "main.bmp"), b"partial-main")
-        self.assertEqual(registry.sprite_sheet("partial", "cbuttons.bmp"),
-                         b"base-cbuttons")
+        self.assertEqual(
+            registry.sprite_sheet("partial", "cbuttons.bmp"), b"base-cbuttons"
+        )
         self.assertEqual(registry.playlist_style("partial")["normal"], "#00FF00")
 
     def test_downloads_once_then_uses_cache(self):
@@ -186,10 +198,16 @@ class SkinRegistryTests(unittest.TestCase):
         """A skin with a "file" entry is read from disk, not downloaded."""
         local_path = self.directory / "local.wsz"
         local_path.write_bytes(BASE_WSZ)
-        self.registry_path.write_text(json.dumps({
-            "default_skin": "local",
-            "skins": [{"id": "local", "name": "Local", "file": str(local_path)}],
-        }))
+        self.registry_path.write_text(
+            json.dumps(
+                {
+                    "default_skin": "local",
+                    "skins": [
+                        {"id": "local", "name": "Local", "file": str(local_path)}
+                    ],
+                }
+            )
+        )
         registry = self.make_registry()
         self.assertEqual(registry.sprite_sheet("local", "text.bmp"), b"base-text")
         self.assertEqual(self.downloads, [])

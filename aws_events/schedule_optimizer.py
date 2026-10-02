@@ -107,8 +107,9 @@ class PlannedSession:
         length = (session.get("sessionTime") or {}).get("length")
         minutes = int(length) if length else DEFAULT_SESSION_MINUTES
         end = start + timedelta(minutes=minutes)
-        return cls(session["sessionId"], session_venue(session), start, end,
-                   must_attend)
+        return cls(
+            session["sessionId"], session_venue(session), start, end, must_attend
+        )
 
     def day(self):
         """Return the day the session starts, as "YYYY-MM-DD"."""
@@ -194,22 +195,24 @@ def plan_day(sessions, max_venues=DEFAULT_VENUES_PER_DAY):
     # One must-attend session is worth more than every other session together,
     # so the plan keeps as many of them as it can before counting the rest.
     must_attend_weight = len(sessions) + 1
-    ordered = sorted(sessions, key=lambda session: (session.start, session.end,
-                                                    session.session_id))
+    ordered = sorted(
+        sessions, key=lambda session: (session.start, session.end, session.session_id)
+    )
 
     # best_steps[index][moves] is the best run ending with ordered[index] that
     # uses exactly that many moves, or None if there is no such run.
     best_steps = []
     for index, session in enumerate(ordered):
         weight = must_attend_weight if session.must_attend else 1
-        best_steps.append(best_steps_ending_with(
-            session, weight, ordered[:index], best_steps, max_moves
-        ))
+        best_steps.append(
+            best_steps_ending_with(
+                session, weight, ordered[:index], best_steps, max_moves
+            )
+        )
     return build_day_plan(best_final_step(best_steps), sessions)
 
 
-def best_steps_ending_with(session, weight, earlier_sessions, earlier_steps,
-                           max_moves):
+def best_steps_ending_with(session, weight, earlier_sessions, earlier_steps, max_moves):
     """Return, for each number of moves, the best run that ends with `session`.
 
     Args:

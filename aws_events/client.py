@@ -83,8 +83,9 @@ class EventsClient:
 
     # Sessions
 
-    def list_sessions_page(self, event_id, locale=None, include_abstracts=True,
-                           next_token=None):
+    def list_sessions_page(
+        self, event_id, locale=None, include_abstracts=True, next_token=None
+    ):
         """Return one page of an event's session catalog.
 
         Returns:

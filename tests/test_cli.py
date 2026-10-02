@@ -34,31 +34,38 @@ class CommandTests(unittest.TestCase):
 
     def test_sessions_without_abstracts(self):
         """--no-abstracts turns off abstracts in the request."""
-        result, transport = run(["sessions", "e1", "--no-abstracts"],
-                                {"items": [], "totalCount": 0})
+        result, transport = run(
+            ["sessions", "e1", "--no-abstracts"], {"items": [], "totalCount": 0}
+        )
         self.assertEqual(result, [])
         self.assertIn("includeAbstracts=false", transport.requests[0]["url"])
 
     def test_reserve_passes_all_ids(self):
         """reserve sends every session ID given."""
-        _, transport = run(["reserve", "e1", "s1", "s2"],
-                           {"result": {"successful": ["s1", "s2"], "failed": []}})
-        self.assertEqual(transport.requests[0]["json_body"],
-                         {"sessionIds": ["s1", "s2"]})
+        _, transport = run(
+            ["reserve", "e1", "s1", "s2"],
+            {"result": {"successful": ["s1", "s2"], "failed": []}},
+        )
+        self.assertEqual(
+            transport.requests[0]["json_body"], {"sessionIds": ["s1", "s2"]}
+        )
 
     def test_schedule_details_fetches_sessions(self):
         """schedule --details replaces session IDs with sessions."""
         schedule = {"reserved": ["s1"], "favorites": [], "personalTime": []}
-        result, transport = run(["schedule", "e1", "--details"],
-                                {"schedule": schedule},
-                                {"session": {"sessionId": "s1"}})
+        result, transport = run(
+            ["schedule", "e1", "--details"],
+            {"schedule": schedule},
+            {"session": {"sessionId": "s1"}},
+        )
         self.assertEqual(result["reserved"], [{"sessionId": "s1"}])
         self.assertEqual(len(transport.requests), 2)
 
     def test_book_and_unbook_aliases(self):
-        """"book" and "unbook" run the reserve and cancel commands."""
-        _, transport = run(["book", "e1", "s1"],
-                           {"result": {"successful": ["s1"], "failed": []}})
+        """ "book" and "unbook" run the reserve and cancel commands."""
+        _, transport = run(
+            ["book", "e1", "s1"], {"result": {"successful": ["s1"], "failed": []}}
+        )
         self.assertEqual(transport.requests[0]["method"], "POST")
         self.assertTrue(transport.requests[0]["url"].endswith("/reservations"))
 
@@ -75,9 +82,18 @@ class CommandTests(unittest.TestCase):
     def test_add_personal_time(self):
         """add-personal-time sends the block, including location."""
         argv = [
-            "add-personal-time", "e1", "--title", "Lunch",
-            "--description", "Team lunch", "--start", "2026-12-02T19:00:00",
-            "--end", "2026-12-02T20:00:00", "--location", "Venetian",
+            "add-personal-time",
+            "e1",
+            "--title",
+            "Lunch",
+            "--description",
+            "Team lunch",
+            "--start",
+            "2026-12-02T19:00:00",
+            "--end",
+            "2026-12-02T20:00:00",
+            "--location",
+            "Venetian",
         ]
         result, transport = run(argv)
         self.assertEqual(result, "Personal time added.")
@@ -91,16 +107,19 @@ class SearchCommandTests(unittest.TestCase):
         """The three commands chain together through files on disk."""
         page = {
             "items": [
-                make_session("s1", "Serverless patterns", "Lambda and SQS",
-                             abbreviation="SVS301"),
+                make_session(
+                    "s1", "Serverless patterns", "Lambda and SQS", abbreviation="SVS301"
+                ),
                 make_session("s2", "Vector databases", "Embeddings"),
             ],
             "totalCount": 2,
         }
         with tempfile.TemporaryDirectory() as directory:
             paths = [
-                "--catalog", str(Path(directory) / "sessions.json"),
-                "--index", str(Path(directory) / "vectors.json"),
+                "--catalog",
+                str(Path(directory) / "sessions.json"),
+                "--index",
+                str(Path(directory) / "vectors.json"),
             ]
             downloaded, _ = run(["download-sessions", "e1", *paths[:2]], page)
             indexed, _ = run(["build-index", "e1", *paths])
@@ -125,17 +144,22 @@ class MainTests(unittest.TestCase):
     def test_disabled_feature_message(self):
         """A disabled operation prints the friendly message and exits with 1."""
         disabled = ApiError("This operation is currently disabled", 409)
-        with mock.patch("aws_events.HttpTransport.request", side_effect=disabled), \
-                mock.patch("aws_events.Authenticator.get_access_token",
-                           return_value="token"), \
-                mock.patch("sys.stderr") as stderr:
+        with (
+            mock.patch("aws_events.HttpTransport.request", side_effect=disabled),
+            mock.patch(
+                "aws_events.Authenticator.get_access_token", return_value="token"
+            ),
+            mock.patch("sys.stderr") as stderr,
+        ):
             self.assertEqual(events_cli.main(["book", "e1", "s1"]), 1)
         stderr.write.assert_any_call("Error: This feature is not yet enabled")
 
     def test_error_returns_exit_code_one(self):
         """Errors are printed to stderr and give exit code 1."""
-        with mock.patch("events_cli.run_command", side_effect=ValueError("bad")), \
-                mock.patch("sys.stderr") as stderr:
+        with (
+            mock.patch("events_cli.run_command", side_effect=ValueError("bad")),
+            mock.patch("sys.stderr") as stderr,
+        ):
             self.assertEqual(events_cli.main(["schedule", "e1"]), 1)
         stderr.write.assert_any_call("Error: bad")
 

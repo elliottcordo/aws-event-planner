@@ -27,18 +27,36 @@ EMPTY_SCHEDULE = {"reserved": [], "favorites": [], "personalTime": []}
 def sample_sessions():
     """Return three sessions over two venues, two days, two types and three levels."""
     return [
-        make_session("s1", "Serverless patterns", "Lambda and SQS in depth",
-                     abbreviation="SVS301", venue="MGM Grand",
-                     type="Workshop", level="300 - Advanced",
-                     sessionTime={"date": "2026-12-01", "time": "10:00"}),
-        make_session("s2", "Vector databases", "Embeddings at scale",
-                     abbreviation="AIM201", venue="Venetian",
-                     type="Breakout session", level="200 - Intermediate",
-                     sessionTime={"date": "2026-12-02", "time": "09:00"}),
-        make_session("s3", "Lambda tuning", "Cold starts",
-                     abbreviation="SVS402", venue="MGM Grand",
-                     type="Workshop", level="400 - Expert",
-                     sessionTime={"date": "2026-12-02", "time": "13:00"}),
+        make_session(
+            "s1",
+            "Serverless patterns",
+            "Lambda and SQS in depth",
+            abbreviation="SVS301",
+            venue="MGM Grand",
+            type="Workshop",
+            level="300 - Advanced",
+            sessionTime={"date": "2026-12-01", "time": "10:00"},
+        ),
+        make_session(
+            "s2",
+            "Vector databases",
+            "Embeddings at scale",
+            abbreviation="AIM201",
+            venue="Venetian",
+            type="Breakout session",
+            level="200 - Intermediate",
+            sessionTime={"date": "2026-12-02", "time": "09:00"},
+        ),
+        make_session(
+            "s3",
+            "Lambda tuning",
+            "Cold starts",
+            abbreviation="SVS402",
+            venue="MGM Grand",
+            type="Workshop",
+            level="400 - Expert",
+            sessionTime={"date": "2026-12-02", "time": "13:00"},
+        ),
     ]
 
 
@@ -53,8 +71,9 @@ class ScriptedTransport(FakeTransport):
         super().__init__(*responses)
         self.schedule = schedule
 
-    def request(self, method, url, params=None, json_body=None, form=None,
-                headers=None):
+    def request(
+        self, method, url, params=None, json_body=None, form=None, headers=None
+    ):
         """Answer GET .../schedule from the fixed schedule."""
         if method == "GET" and url.endswith("/schedule"):
             self.requests.append({"method": method, "url": url})
@@ -79,12 +98,19 @@ class WebAppTestCase(unittest.TestCase):
         SessionVectorStore.build(catalog, embeddings).save(self.index_path(EVENT))
 
         registry_path = self.directory / "skins.json"
-        registry_path.write_text(json.dumps({
-            "default_skin": "base",
-            "skins": [{"id": "base", "name": "Base", "url": "https://skins.test/b"}],
-        }))
-        self.skins = SkinRegistry(registry_path, self.directory / "cache",
-                                  download=lambda url: BASE_WSZ)
+        registry_path.write_text(
+            json.dumps(
+                {
+                    "default_skin": "base",
+                    "skins": [
+                        {"id": "base", "name": "Base", "url": "https://skins.test/b"}
+                    ],
+                }
+            )
+        )
+        self.skins = SkinRegistry(
+            registry_path, self.directory / "cache", download=lambda url: BASE_WSZ
+        )
 
         self.authenticator = FakeAuthenticator()
         self.transport = ScriptedTransport(
@@ -153,6 +179,7 @@ class PageTests(WebAppTestCase):
 
     def test_skin_that_fails_to_load_turns_skin_off(self):
         """If a skin can't be downloaded, the page is plain with a warning."""
+
         def broken_download(_url):
             raise SkinError("offline")
 
@@ -210,8 +237,9 @@ class SessionResultsTests(WebAppTestCase):
         self.assertIn("<th>Session</th>", text)
         self.assertNotIn("<th>Code</th>", text)
         self.assertRegex(
-            text, r'<td class="session">\s*<span class="code">SVS301</span>'
-                  r'\s*<span class="title">Serverless patterns</span>'
+            text,
+            r'<td class="session">\s*<span class="code">SVS301</span>'
+            r'\s*<span class="title">Serverless patterns</span>',
         )
 
     def test_status_column_has_no_mine_header(self):
@@ -226,20 +254,27 @@ class SessionResultsTests(WebAppTestCase):
         self.assertEqual(text.count('class="status-slot"'), 2 * 3)
         # s1 is a favorite only: an empty reserved slot, then the heart.
         self.assertRegex(
-            text, r'<span class="status-slot"></span>\s*'
-                  r'<span class="status-slot" title="Favorite">❤️'
+            text,
+            r'<span class="status-slot"></span>\s*'
+            r'<span class="status-slot" title="Favorite">❤️',
         )
         # s3 is reserved only: the check, then an empty favorite slot.
         self.assertRegex(
-            text, r'title="Reserved">✅<span class="visually-hidden">Reserved</span>'
-                  r'</span>\s*<span class="status-slot"></span>'
+            text,
+            r'title="Reserved">✅<span class="visually-hidden">Reserved</span>'
+            r'</span>\s*<span class="status-slot"></span>',
         )
 
     def test_filters_apply(self):
         """Venue and date filters narrow the list."""
-        response = self.client.get("/sessions", params={
-            "event_id": EVENT, "venue": "MGM Grand", "date": "2026-12-02",
-        })
+        response = self.client.get(
+            "/sessions",
+            params={
+                "event_id": EVENT,
+                "venue": "MGM Grand",
+                "date": "2026-12-02",
+            },
+        )
         self.assertIn("1 sessions", response.text)
         self.assertIn("SVS402", response.text)
         self.assertNotIn("SVS301", response.text)
@@ -250,34 +285,49 @@ class SessionResultsTests(WebAppTestCase):
         self.assertIn('<option value="Workshop">Workshop</option>', page)
         self.assertIn('<option value="400 - Expert">400 - Expert</option>', page)
 
-        workshops = self.client.get("/sessions", params={
-            "event_id": EVENT, "type": "Workshop",
-        }).text
+        workshops = self.client.get(
+            "/sessions",
+            params={
+                "event_id": EVENT,
+                "type": "Workshop",
+            },
+        ).text
         self.assertIn("2 sessions", workshops)
         self.assertNotIn("AIM201", workshops)
 
-        expert = self.client.get("/sessions", params={
-            "event_id": EVENT, "type": "Workshop", "level": "400 - Expert",
-        }).text
+        expert = self.client.get(
+            "/sessions",
+            params={
+                "event_id": EVENT,
+                "type": "Workshop",
+                "level": "400 - Expert",
+            },
+        ).text
         self.assertIn("1 sessions", expert)
         self.assertIn("SVS402", expert)
 
     def test_search_returns_top_matches(self):
         """A query shows the top matches within the filters."""
-        response = self.client.get("/sessions", params={
-            "event_id": EVENT, "q": "lambda", "venue": "MGM Grand",
-        })
+        response = self.client.get(
+            "/sessions",
+            params={
+                "event_id": EVENT,
+                "q": "lambda",
+                "venue": "MGM Grand",
+            },
+        )
         self.assertIn("Top 2 matches", response.text)
         self.assertNotIn("AIM201", response.text)
 
     def test_paging(self):
         """Browsing pages 100 rows at a time with a Show more link."""
-        many = [make_session(f"x{number:03}", f"Talk {number}")
-                for number in range(150)]
+        many = [
+            make_session(f"x{number:03}", f"Talk {number}") for number in range(150)
+        ]
         SessionCatalog("big", many).save(self.catalog_path("big"))
-        SessionVectorStore.build(SessionCatalog("big", many[:1]),
-                                 DeterministicFakeEmbedding(size=16)).save(
-            self.index_path("big"))
+        SessionVectorStore.build(
+            SessionCatalog("big", many[:1]), DeterministicFakeEmbedding(size=16)
+        ).save(self.index_path("big"))
 
         first = self.client.get("/sessions", params={"event_id": "big"})
         self.assertEqual(first.text.count('name="session_ids"'), 100)
@@ -353,9 +403,13 @@ class FavoritesTests(WebAppTestCase):
         self.transport.responses.append(
             {"result": {"successful": ["s1", "s2"], "failed": []}}
         )
-        response = self.client.post("/favorites", data={
-            "event_id": EVENT, "session_ids": ["s1", "s2"],
-        })
+        response = self.client.post(
+            "/favorites",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1", "s2"],
+            },
+        )
         self.assertIn("Added 2 session(s) to favorites.", response.text)
         self.assertEqual(response.headers["HX-Trigger"], "scheduleChanged")
         sent = self.transport.requests[-1]
@@ -364,13 +418,21 @@ class FavoritesTests(WebAppTestCase):
 
     def test_refusal_is_explained_by_session_code(self):
         """A refused session is named by its code with a plain reason."""
-        self.transport.responses.append({"result": {
-            "successful": [],
-            "failed": [{"sessionId": "s1", "code": "alreadyFavorited"}],
-        }})
-        response = self.client.post("/favorites", data={
-            "event_id": EVENT, "session_ids": ["s1"],
-        })
+        self.transport.responses.append(
+            {
+                "result": {
+                    "successful": [],
+                    "failed": [{"sessionId": "s1", "code": "alreadyFavorited"}],
+                }
+            }
+        )
+        response = self.client.post(
+            "/favorites",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1"],
+            },
+        )
         self.assertIn("SVS301 is already a favorite.", response.text)
         self.assertIn("message error", response.text)
         # Nothing changed, so the page is not told to reload.
@@ -379,9 +441,13 @@ class FavoritesTests(WebAppTestCase):
     def test_remove_favorites(self):
         """Each ticked session is removed; one that isn't a favorite is reported."""
         self.transport.responses.extend([None, ApiError("Not a favorite", 404)])
-        response = self.client.post("/favorites/remove", data={
-            "event_id": EVENT, "session_ids": ["s1", "s2"],
-        })
+        response = self.client.post(
+            "/favorites/remove",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1", "s2"],
+            },
+        )
         deletes = [r for r in self.transport.requests if r["method"] == "DELETE"]
         self.assertEqual([r["url"].rsplit("/", 1)[-1] for r in deletes], ["s1", "s2"])
         self.assertIn("Removed 1 session(s) from favorites.", response.text)
@@ -405,9 +471,13 @@ class BookingTests(WebAppTestCase):
         self.transport.responses.append(
             {"result": {"successful": ["s1", "s2"], "failed": []}}
         )
-        response = self.client.post("/reservations", data={
-            "event_id": EVENT, "session_ids": ["s1", "s2"],
-        })
+        response = self.client.post(
+            "/reservations",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1", "s2"],
+            },
+        )
         sent = self.transport.requests[-1]
         self.assertEqual(sent["method"], "POST")
         self.assertTrue(sent["url"].endswith(f"/events/{EVENT}/reservations"))
@@ -417,14 +487,27 @@ class BookingTests(WebAppTestCase):
 
     def test_clash_names_the_other_sessions(self):
         """A schedule clash says which booked sessions it clashes with."""
-        self.transport.responses.append({"result": {
-            "successful": ["s2"],
-            "failed": [{"sessionId": "s1", "code": "scheduleConflict",
-                        "conflictsWith": ["s3"]}],
-        }})
-        response = self.client.post("/reservations", data={
-            "event_id": EVENT, "session_ids": ["s1", "s2"],
-        })
+        self.transport.responses.append(
+            {
+                "result": {
+                    "successful": ["s2"],
+                    "failed": [
+                        {
+                            "sessionId": "s1",
+                            "code": "scheduleConflict",
+                            "conflictsWith": ["s3"],
+                        }
+                    ],
+                }
+            }
+        )
+        response = self.client.post(
+            "/reservations",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1", "s2"],
+            },
+        )
         self.assertIn("Booked 1 session(s).", response.text)
         self.assertIn("SVS301 clashes with SVS402 on your schedule.", response.text)
         self.assertIn("message warning", response.text)
@@ -434,9 +517,13 @@ class BookingTests(WebAppTestCase):
         self.transport.responses.append(
             ApiError("This operation is currently disabled", 409)
         )
-        response = self.client.post("/reservations", data={
-            "event_id": EVENT, "session_ids": ["s1"],
-        })
+        response = self.client.post(
+            "/reservations",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1"],
+            },
+        )
         self.assertIn("This feature is not yet enabled", response.text)
         self.assertNotIn("409", response.text)
         self.assertIn("message error", response.text)
@@ -446,9 +533,13 @@ class BookingTests(WebAppTestCase):
         self.transport.responses.append(
             ApiError("This operation is currently disabled", 409)
         )
-        response = self.client.post("/favorites/remove", data={
-            "event_id": EVENT, "session_ids": ["s1", "s2"],
-        })
+        response = self.client.post(
+            "/favorites/remove",
+            data={
+                "event_id": EVENT,
+                "session_ids": ["s1", "s2"],
+            },
+        )
         self.assertIn("This feature is not yet enabled", response.text)
         deletes = [r for r in self.transport.requests if r["method"] == "DELETE"]
         self.assertEqual(len(deletes), 1)
@@ -456,9 +547,13 @@ class BookingTests(WebAppTestCase):
     def test_more_than_ten_is_refused_before_calling_api(self):
         """Booking more than the API's limit gives an error, not a request."""
         ids = [f"x{number}" for number in range(11)]
-        response = self.client.post("/reservations", data={
-            "event_id": EVENT, "session_ids": ids,
-        })
+        response = self.client.post(
+            "/reservations",
+            data={
+                "event_id": EVENT,
+                "session_ids": ids,
+            },
+        )
         self.assertIn("message error", response.text)
         self.assertEqual(self.transport.requests, [])
 
@@ -481,7 +576,9 @@ class OptimizerTests(WebAppTestCase):
         """Favorite all three sample sessions; s2 and s3 share 2 Dec."""
         super().setUp()
         self.transport.schedule = {
-            "reserved": [], "favorites": ["s1", "s2", "s3"], "personalTime": [],
+            "reserved": [],
+            "favorites": ["s1", "s2", "s3"],
+            "personalTime": [],
         }
 
     def test_schedule_panel_links_to_optimizer(self):
@@ -517,9 +614,13 @@ class OptimizerTests(WebAppTestCase):
 
     def test_optimize_keeps_the_best_sessions(self):
         """With 1 venue on 2 Dec, one session goes and is offered for removal."""
-        response = self.client.post("/optimizer/optimize", data={
-            "event_id": EVENT, "max_venues": ["2026-12-02:1"],
-        })
+        response = self.client.post(
+            "/optimizer/optimize",
+            data={
+                "event_id": EVENT,
+                "max_venues": ["2026-12-02:1"],
+            },
+        )
         text = response.text
         self.assertIn("keeping 2 of 3 sessions", text)
         self.assertIn('name="remove_ids" value="s3"', text)
@@ -530,18 +631,27 @@ class OptimizerTests(WebAppTestCase):
 
     def test_refresh_keeps_choices(self):
         """Rebuilding after a change keeps the ticks and the optimized state."""
-        response = self.client.post("/optimizer/grid", data={
-            "event_id": EVENT, "optimized": "yes", "must_attend": ["s3"],
-            "max_venues": ["2026-12-02:1"],
-        })
+        response = self.client.post(
+            "/optimizer/grid",
+            data={
+                "event_id": EVENT,
+                "optimized": "yes",
+                "must_attend": ["s3"],
+                "max_venues": ["2026-12-02:1"],
+            },
+        )
         self.assertIn('name="remove_ids" value="s2"', response.text)
         self.assertIn('value="s3" checked', response.text)
 
     def test_apply_removes_only_dropped_favorites(self):
         """Apply deletes the listed favorites and asks the page to refresh."""
-        response = self.client.post("/optimizer/apply", data={
-            "event_id": EVENT, "remove_ids": ["s3"],
-        })
+        response = self.client.post(
+            "/optimizer/apply",
+            data={
+                "event_id": EVENT,
+                "remove_ids": ["s3"],
+            },
+        )
         deletes = [r for r in self.transport.requests if r["method"] == "DELETE"]
         self.assertEqual([r["url"].rsplit("/", 1)[-1] for r in deletes], ["s3"])
         self.assertIn("Removed 1 session(s) from favorites.", response.text)
@@ -550,13 +660,19 @@ class OptimizerTests(WebAppTestCase):
     def test_book_sends_batches_of_ten(self):
         """Booking more than ten sessions splits them over several calls."""
         ids = [f"x{number}" for number in range(12)]
-        self.transport.responses.extend([
-            {"result": {"successful": ids[:10], "failed": []}},
-            {"result": {"successful": ids[10:], "failed": []}},
-        ])
-        response = self.client.post("/optimizer/book", data={
-            "event_id": EVENT, "book_ids": ids,
-        })
+        self.transport.responses.extend(
+            [
+                {"result": {"successful": ids[:10], "failed": []}},
+                {"result": {"successful": ids[10:], "failed": []}},
+            ]
+        )
+        response = self.client.post(
+            "/optimizer/book",
+            data={
+                "event_id": EVENT,
+                "book_ids": ids,
+            },
+        )
         posts = [r for r in self.transport.requests if r["method"] == "POST"]
         self.assertEqual([len(r["json_body"]["sessionIds"]) for r in posts], [10, 2])
         self.assertIn("Booked 12 session(s).", response.text)
@@ -565,13 +681,16 @@ class OptimizerTests(WebAppTestCase):
         """The grid suggests backing up favorites, with a download link."""
         text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
         self.assertIn("We recommend you back up your favorites first", text)
-        self.assertIn('href="/optimizer/favorites.csv?event_id=reinvent2026" download',
-                      text)
+        self.assertIn(
+            'href="/optimizer/favorites.csv?event_id=reinvent2026" download', text
+        )
 
     def test_booked_sessions_are_locked(self):
         """A booked session shows ✅ instead of a must-attend box."""
         self.transport.schedule = {
-            "reserved": ["s3"], "favorites": ["s1", "s2"], "personalTime": [],
+            "reserved": ["s3"],
+            "favorites": ["s1", "s2"],
+            "personalTime": [],
         }
         text = self.client.get("/optimizer/grid", params={"event_id": EVENT}).text
         self.assertEqual(text.count('name="must_attend"'), 2)
@@ -581,32 +700,41 @@ class OptimizerTests(WebAppTestCase):
     def test_booked_session_kept_even_if_unticked(self):
         """Optimizing with 1 venue keeps the booked s3 over the favorite s2."""
         self.transport.schedule = {
-            "reserved": ["s3"], "favorites": ["s1", "s2"], "personalTime": [],
+            "reserved": ["s3"],
+            "favorites": ["s1", "s2"],
+            "personalTime": [],
         }
-        response = self.client.post("/optimizer/optimize", data={
-            "event_id": EVENT, "max_venues": ["2026-12-02:1"],
-        })
+        response = self.client.post(
+            "/optimizer/optimize",
+            data={
+                "event_id": EVENT,
+                "max_venues": ["2026-12-02:1"],
+            },
+        )
         self.assertIn('name="remove_ids" value="s2"', response.text)
         self.assertIn("Stays at MGM Grand", response.text)
 
     def test_favorites_csv_download(self):
         """The backup is a CSV attachment listing every favorite."""
-        response = self.client.get("/optimizer/favorites.csv",
-                                   params={"event_id": EVENT})
+        response = self.client.get(
+            "/optimizer/favorites.csv", params={"event_id": EVENT}
+        )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.headers["content-type"].startswith("text/csv"))
-        self.assertIn('attachment; filename="reinvent2026-favorites-',
-                      response.headers["content-disposition"])
+        self.assertIn(
+            'attachment; filename="reinvent2026-favorites-',
+            response.headers["content-disposition"],
+        )
         lines = response.text.splitlines()
         self.assertTrue(lines[0].startswith("session_id,code,title"))
-        self.assertEqual([line.split(",")[0] for line in lines[1:]],
-                         ["s1", "s2", "s3"])
+        self.assertEqual([line.split(",")[0] for line in lines[1:]], ["s1", "s2", "s3"])
 
     def test_favorites_csv_needs_sign_in(self):
         """Signed out, the backup explains why and doesn't call the API."""
         self.authenticator.signed_in = False
-        response = self.client.get("/optimizer/favorites.csv",
-                                   params={"event_id": EVENT})
+        response = self.client.get(
+            "/optimizer/favorites.csv", params={"event_id": EVENT}
+        )
         self.assertEqual(response.status_code, 401)
         self.assertIn("Sign in first", response.text)
         self.assertEqual(self.transport.requests, [])
@@ -641,6 +769,7 @@ class RebuildTests(WebAppTestCase):
 
     def test_rebuild_failure_is_shown(self):
         """A failed download is reported and the page is not reloaded."""
+
         def not_signed_in():
             raise SignInError("You are not signed in.")
 

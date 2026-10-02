@@ -24,8 +24,9 @@ class HttpTransport:
         self.timeout_seconds = timeout_seconds
         self.session = session or requests.Session()
 
-    def request(self, method, url, params=None, json_body=None, form=None,
-                headers=None):
+    def request(
+        self, method, url, params=None, json_body=None, form=None, headers=None
+    ):
         """Send one HTTP request and return the decoded JSON body.
 
         Args:

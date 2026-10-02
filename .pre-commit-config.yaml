@@ -1,0 +1,47 @@
+# Keep generated and downloaded files out of hook scans.
+exclude: ^(venv/|\.venv/|data/|dist/)
+
+# Install both the fast commit checks and the full test suite before pushes.
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-ast
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: unittest
+        name: unittest
+        entry: >-
+          bash -c 'ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+          && exec "$ROOT/venv/bin/python" -m unittest discover -s tests -t .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]

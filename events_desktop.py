@@ -85,11 +85,13 @@ def set_app_identity(name):
         # PyObjC builds its names at run time, which pylint cannot see.
         # pylint: disable-next=import-outside-toplevel,import-error,no-name-in-module
         from Foundation import NSBundle
+
         info = NSBundle.mainBundle().infoDictionary()
         info["CFBundleName"] = name
         info["CFBundleDisplayName"] = name
     elif sys.platform == "win32":
         import ctypes  # pylint: disable=import-outside-toplevel
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(WINDOWS_APP_ID)
 
 
@@ -169,7 +171,8 @@ def main():
     webview.settings["DRAG_REGION_SELECTOR"] = DRAG_REGION_SELECTOR
     screen = webview.screens[0]
     window = webview.create_window(
-        WINDOW_TITLE, f"http://127.0.0.1:{port}/",
+        WINDOW_TITLE,
+        f"http://127.0.0.1:{port}/",
         **window_options(screen.width, screen.height),
     )
     controls = WindowControls(window)

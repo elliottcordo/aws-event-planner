@@ -93,6 +93,7 @@ class FastEmbedEmbeddings(Embeddings):
             # most commands never need it.
             # pylint: disable-next=import-outside-toplevel
             from fastembed import TextEmbedding
+
             self._model = TextEmbedding(model_name=self.model_name)
         return self._model
 

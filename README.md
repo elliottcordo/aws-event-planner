@@ -271,6 +271,23 @@ Then open <http://127.0.0.1:8000>. Use `--port` to pick another port. The app
 listens only on your own machine, because it acts with your AWS Builder ID
 sign-in.
 
+**Running under WSL.** Start `events_web.py` in WSL, then open
+<http://localhost:8000> in your Windows browser. Sign-in links also open in
+the Windows default browser, and the browser returns to the callback server in
+WSL on port 8484.
+
+Current WSL versions forward Windows `localhost` connections automatically. If
+Windows cannot reach the app, add this to `%UserProfile%\.wslconfig`:
+
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+Then run `wsl --shutdown` in PowerShell and restart WSL. On older WSL versions,
+use `localhostForwarding=true` instead. Keep the app bound to `127.0.0.1`;
+binding it to `0.0.0.0` can expose an app that acts with your AWS sign-in.
+
 **As a desktop app.** To use it in its own window instead of a browser tab:
 
 ```bash
@@ -490,4 +507,21 @@ data/                Downloaded catalogs, search indexes and skins (created on f
 
 ```bash
 python3 -m unittest discover -s tests -t .
+```
+
+## Development checks
+
+Install the Git hooks after setting up the virtual environment:
+
+```bash
+venv/bin/pre-commit install
+```
+
+The commit hook runs Ruff formatting and linting, file validation, and secret
+scans. The push hook also runs the unit test suite. Run either set manually
+with:
+
+```bash
+make check
+make push-checks
 ```

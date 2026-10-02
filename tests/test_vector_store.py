@@ -17,11 +17,14 @@ from tests.fakes import make_session
 
 def sample_catalog():
     """Return a small catalog with three distinct sessions."""
-    return SessionCatalog("e1", [
-        make_session("s1", "Serverless patterns", "Lambda and queues"),
-        make_session("s2", "Vector databases", "Embeddings at scale"),
-        make_session("s3", "Cost optimization", "Save on compute"),
-    ])
+    return SessionCatalog(
+        "e1",
+        [
+            make_session("s1", "Serverless patterns", "Lambda and queues"),
+            make_session("s2", "Vector databases", "Embeddings at scale"),
+            make_session("s3", "Cost optimization", "Save on compute"),
+        ],
+    )
 
 
 class SessionTextTests(unittest.TestCase):
@@ -30,7 +33,9 @@ class SessionTextTests(unittest.TestCase):
     def test_text_includes_labels_and_speakers(self):
         """Title, code, abstract, labels and speakers all appear in the text."""
         session = make_session(
-            "s1", "Serverless patterns", "Lambda and queues",
+            "s1",
+            "Serverless patterns",
+            "Lambda and queues",
             abbreviation="SVS301",
             level="300 - Advanced",
             services=["AWS Lambda", "Amazon SQS"],
@@ -39,9 +44,14 @@ class SessionTextTests(unittest.TestCase):
 
         text = session_to_text(session)
 
-        for expected in ["Serverless patterns", "SVS301", "Lambda and queues",
-                         "300 - Advanced", "Services: AWS Lambda, Amazon SQS",
-                         "Speakers: Ana Silva"]:
+        for expected in [
+            "Serverless patterns",
+            "SVS301",
+            "Lambda and queues",
+            "300 - Advanced",
+            "Services: AWS Lambda, Amazon SQS",
+            "Speakers: Ana Silva",
+        ]:
             self.assertIn(expected, text)
 
     def test_missing_fields_are_skipped(self):

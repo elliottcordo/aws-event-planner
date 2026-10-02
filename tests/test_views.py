@@ -13,10 +13,13 @@ from web.views import (
 )
 
 
-CATALOG = SessionCatalog("e1", [
-    make_session("s1", "One", abbreviation="ANT301"),
-    make_session("s2", "Two", abbreviation="DAT317"),
-])
+CATALOG = SessionCatalog(
+    "e1",
+    [
+        make_session("s1", "One", abbreviation="ANT301"),
+        make_session("s2", "Two", abbreviation="DAT317"),
+    ],
+)
 
 
 class DescribeTests(unittest.TestCase):
@@ -30,15 +33,21 @@ class DescribeTests(unittest.TestCase):
     def test_unknown_code_and_session(self):
         """Unrecognized codes and sessions still give a sensible sentence."""
         failure = {"sessionId": "zz", "code": "somethingNew"}
-        self.assertEqual(describe_failure(failure, CATALOG),
-                         "zz was refused (somethingNew).")
+        self.assertEqual(
+            describe_failure(failure, CATALOG), "zz was refused (somethingNew)."
+        )
 
     def test_conflict_lists_clashing_sessions(self):
         """A clash names the sessions it overlaps."""
-        failure = {"sessionId": "s1", "code": "scheduleConflict",
-                   "conflictsWith": ["s2"]}
-        self.assertEqual(describe_failure(failure, CATALOG),
-                         "ANT301 clashes with DAT317 on your schedule.")
+        failure = {
+            "sessionId": "s1",
+            "code": "scheduleConflict",
+            "conflictsWith": ["s2"],
+        }
+        self.assertEqual(
+            describe_failure(failure, CATALOG),
+            "ANT301 clashes with DAT317 on your schedule.",
+        )
 
     def test_kind_reflects_outcome(self):
         """All good is success, all failed is error, a mix is warning."""
@@ -46,12 +55,17 @@ class DescribeTests(unittest.TestCase):
         refused = {"sessionId": "s1", "code": "timePassed"}
         self.assertEqual(
             describe_bulk_result({"successful": ["s2"], "failed": []}, done, CATALOG),
-            ("success", "Booked 1 session(s)."))
+            ("success", "Booked 1 session(s)."),
+        )
         self.assertEqual(
-            describe_bulk_result({"successful": [], "failed": [refused]}, done,
-                                 CATALOG)[0], "error")
+            describe_bulk_result(
+                {"successful": [], "failed": [refused]}, done, CATALOG
+            )[0],
+            "error",
+        )
         kind, message = describe_bulk_result(
-            {"successful": ["s2"], "failed": [refused]}, done, CATALOG)
+            {"successful": ["s2"], "failed": [refused]}, done, CATALOG
+        )
         self.assertEqual(kind, "warning")
         self.assertEqual(message, "Booked 1 session(s). ANT301 has already started.")
 
@@ -61,21 +75,24 @@ class TableFormatTests(unittest.TestCase):
 
     def test_when_gives_day_and_time_separately(self):
         """The row has the day ("Wed 2 Dec") and start time apart, for two lines."""
-        session = make_session("s1", "T", sessionTime={"date": "2026-12-02",
-                                                       "time": "13:30"})
+        session = make_session(
+            "s1", "T", sessionTime={"date": "2026-12-02", "time": "13:30"}
+        )
         row = session_row(session, {})
         self.assertEqual((row["day"], row["time"]), ("Wed 2 Dec", "13:30"))
         unscheduled = session_row(make_session("s2", "T"), {})
-        self.assertEqual((unscheduled["day"], unscheduled["time"]), ("Date not set", ""))
+        self.assertEqual(
+            (unscheduled["day"], unscheduled["time"]), ("Date not set", "")
+        )
 
     def test_short_level_keeps_only_the_number(self):
-        """"300 - Advanced" becomes "300"; other text is kept as it is."""
+        """ "300 - Advanced" becomes "300"; other text is kept as it is."""
         self.assertEqual(short_level("300 - Advanced"), "300")
         self.assertEqual(short_level("100 - Foundational"), "100")
         self.assertEqual(short_level("All levels"), "All levels")
 
     def test_no_level_becomes_not_applicable(self):
-        """"No Level" (any case) and a missing level show as "N/A"."""
+        """ "No Level" (any case) and a missing level show as "N/A"."""
         self.assertEqual(short_level("No Level"), "N/A")
         self.assertEqual(short_level("no level"), "N/A")
         self.assertEqual(short_level(""), "N/A")
@@ -93,15 +110,19 @@ class TableFormatTests(unittest.TestCase):
         self.assertEqual(row["type"], "")
 
 
-
 class EventYearTests(unittest.TestCase):
     """The year shown in the kbps and kHz readouts."""
 
     def test_year_from_first_session_date(self):
         """The catalog's first session date gives the year."""
-        catalog = SessionCatalog("e1", [
-            make_session("s1", "T", sessionTime={"date": "2025-12-01", "time": "09:00"}),
-        ])
+        catalog = SessionCatalog(
+            "e1",
+            [
+                make_session(
+                    "s1", "T", sessionTime={"date": "2025-12-01", "time": "09:00"}
+                ),
+            ],
+        )
         self.assertEqual(event_year("reinvent2026", catalog), "2025")
 
     def test_year_from_event_id(self):
