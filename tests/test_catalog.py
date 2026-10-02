@@ -20,8 +20,11 @@ class SessionCatalogTests(unittest.TestCase):
     def test_download_fetches_all_pages(self):
         """download collects sessions from every page."""
         transport = FakeTransport(
-            {"items": [make_session("s1", "One")], "totalCount": 2,
-             "nextToken": "next"},
+            {
+                "items": [make_session("s1", "One")],
+                "totalCount": 2,
+                "nextToken": "next",
+            },
             {"items": [make_session("s2", "Two")], "totalCount": 2},
         )
         client = EventsClient(transport, FakeAuthenticator())
@@ -64,13 +67,16 @@ class SessionFilterTests(unittest.TestCase):
 
     def setUp(self):
         """Create a catalog spread over two venues and two days."""
-        self.catalog = SessionCatalog("e1", [
-            scheduled_session("late", "MGM Grand", "2026-12-02", "15:00"),
-            scheduled_session("early", "MGM Grand", "2026-12-02", "09:00"),
-            scheduled_session("other_day", "MGM Grand", "2026-12-03", "09:00"),
-            scheduled_session("other_venue", "Venetian", "2026-12-02", "10:00"),
-            make_session("unscheduled", "No time or venue yet"),
-        ])
+        self.catalog = SessionCatalog(
+            "e1",
+            [
+                scheduled_session("late", "MGM Grand", "2026-12-02", "15:00"),
+                scheduled_session("early", "MGM Grand", "2026-12-02", "09:00"),
+                scheduled_session("other_day", "MGM Grand", "2026-12-03", "09:00"),
+                scheduled_session("other_venue", "Venetian", "2026-12-02", "10:00"),
+                make_session("unscheduled", "No time or venue yet"),
+            ],
+        )
 
     def test_empty_filter_matches_everything(self):
         """A filter with no criteria matches every session."""
@@ -87,8 +93,9 @@ class SessionFilterTests(unittest.TestCase):
     def test_date_only(self):
         """A date filter alone ignores venue."""
         matching = self.catalog.filter_sessions(SessionFilter(date="2026-12-02"))
-        self.assertEqual([s["sessionId"] for s in matching],
-                         ["early", "other_venue", "late"])
+        self.assertEqual(
+            [s["sessionId"] for s in matching], ["early", "other_venue", "late"]
+        )
 
     def test_venues_and_dates_lists(self):
         """venues() and dates() list distinct values and skip missing ones."""
@@ -97,12 +104,15 @@ class SessionFilterTests(unittest.TestCase):
 
     def test_type_and_level(self):
         """Type and level filters match exactly; types() and levels() list them."""
-        catalog = SessionCatalog("e1", [
-            make_session("a", "A", type="Workshop", level="300 - Advanced"),
-            make_session("b", "B", type="Chalk talk", level="300 - Advanced"),
-            make_session("c", "C", type="Workshop", level="100 - Foundational"),
-            make_session("d", "D"),
-        ])
+        catalog = SessionCatalog(
+            "e1",
+            [
+                make_session("a", "A", type="Workshop", level="300 - Advanced"),
+                make_session("b", "B", type="Chalk talk", level="300 - Advanced"),
+                make_session("c", "C", type="Workshop", level="100 - Foundational"),
+                make_session("d", "D"),
+            ],
+        )
         self.assertEqual(catalog.types(), ["Chalk talk", "Workshop"])
         self.assertEqual(catalog.levels(), ["100 - Foundational", "300 - Advanced"])
         both = SessionFilter(session_type="Workshop", level="300 - Advanced")
@@ -112,10 +122,15 @@ class SessionFilterTests(unittest.TestCase):
 
     def test_venues_named_only_in_the_room_count(self):
         """Sessions with no venue field are listed and filtered by their room's venue."""
-        catalog = SessionCatalog("e1", [
-            make_session("wynn", "Wynn talk", room="Wynn/Encore | Level 1 | Latour 7"),
-            make_session("mgm", "MGM talk", venue="MGM Grand", room="Level 3"),
-        ])
+        catalog = SessionCatalog(
+            "e1",
+            [
+                make_session(
+                    "wynn", "Wynn talk", room="Wynn/Encore | Level 1 | Latour 7"
+                ),
+                make_session("mgm", "MGM talk", venue="MGM Grand", room="Level 3"),
+            ],
+        )
         self.assertEqual(catalog.venues(), ["MGM Grand", "Wynn/Encore"])
         matching = catalog.filter_sessions(SessionFilter(venue="Wynn/Encore"))
         self.assertEqual([s["sessionId"] for s in matching], ["wynn"])

@@ -23,7 +23,6 @@ Session search:
 import argparse
 import json
 import sys
-import webbrowser
 from pathlib import Path
 
 from aws_events import (
@@ -41,6 +40,7 @@ from aws_events import (
     TokenStore,
     default_catalog_path,
     default_index_path,
+    open_url,
     session_venue,
 )
 
@@ -48,7 +48,7 @@ from aws_events import (
 def open_browser_with_fallback(url):
     """Open the sign-in URL, printing it if no browser could be opened."""
     print("Opening AWS Builder ID sign-in in your browser...")
-    if not webbrowser.open(url):
+    if not open_url(url):
         print(f"Open this URL manually:\n{url}")
 
 
@@ -57,16 +57,15 @@ def build_parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    commands = parser.add_subparsers(
-        dest="command", metavar="command", required=True
-    )
+    commands = parser.add_subparsers(dest="command", metavar="command", required=True)
 
     commands.add_parser("login", help="Sign in with AWS Builder ID")
     commands.add_parser("logout", help="Forget the saved sign-in")
 
     events = commands.add_parser("events", help="List events")
-    events.add_argument("--include-past", action="store_true",
-                        help="Also list events that have ended")
+    events.add_argument(
+        "--include-past", action="store_true", help="Also list events that have ended"
+    )
 
     event = commands.add_parser("event", help="Show one event")
     add_event_id(event)
@@ -74,8 +73,9 @@ def build_parser():
     sessions = commands.add_parser("sessions", help="List all sessions in an event")
     add_event_id(sessions)
     sessions.add_argument("--locale", help="Language, for example en-US")
-    sessions.add_argument("--no-abstracts", action="store_true",
-                          help="Leave out session abstracts")
+    sessions.add_argument(
+        "--no-abstracts", action="store_true", help="Leave out session abstracts"
+    )
 
     session = commands.add_parser("session", help="Show one session")
     add_event_id(session)
@@ -84,22 +84,28 @@ def build_parser():
 
     schedule = commands.add_parser("schedule", help="Show your schedule")
     add_event_id(schedule)
-    schedule.add_argument("--details", action="store_true",
-                          help="Show full session details instead of IDs "
-                               "(one extra request per session)")
-    schedule.add_argument("--locale",
-                          help="Language for session details, for example en-US")
+    schedule.add_argument(
+        "--details",
+        action="store_true",
+        help="Show full session details instead of IDs "
+        "(one extra request per session)",
+    )
+    schedule.add_argument(
+        "--locale", help="Language for session details, for example en-US"
+    )
 
     # "book" is the everyday word; the API calls it a reservation. The
     # defaults make args.command the same whichever name is typed.
-    reserve = commands.add_parser("reserve", aliases=["book"],
-                                  help="Book (reserve) one to ten sessions")
+    reserve = commands.add_parser(
+        "reserve", aliases=["book"], help="Book (reserve) one to ten sessions"
+    )
     reserve.set_defaults(command="reserve")
     add_event_id(reserve)
     reserve.add_argument("session_ids", nargs="+", metavar="session_id")
 
-    cancel = commands.add_parser("cancel", aliases=["unbook"],
-                                 help="Cancel a booking (reservation)")
+    cancel = commands.add_parser(
+        "cancel", aliases=["unbook"], help="Cancel a booking (reservation)"
+    )
     cancel.set_defaults(command="cancel")
     add_event_id(cancel)
     cancel.add_argument("session_id")
@@ -112,30 +118,35 @@ def build_parser():
     add_event_id(unfavorite)
     unfavorite.add_argument("session_id")
 
-    add_time = commands.add_parser("add-personal-time",
-                                   help="Add a personal time block")
+    add_time = commands.add_parser(
+        "add-personal-time", help="Add a personal time block"
+    )
     add_event_id(add_time)
     add_personal_time_fields(add_time)
 
-    update_time = commands.add_parser("update-personal-time",
-                                      help="Replace a personal time block")
+    update_time = commands.add_parser(
+        "update-personal-time", help="Replace a personal time block"
+    )
     add_event_id(update_time)
     update_time.add_argument("personal_time_id")
     add_personal_time_fields(update_time)
 
-    delete_time = commands.add_parser("delete-personal-time",
-                                      help="Delete a personal time block")
+    delete_time = commands.add_parser(
+        "delete-personal-time", help="Delete a personal time block"
+    )
     add_event_id(delete_time)
     delete_time.add_argument("personal_time_id")
 
-    download = commands.add_parser("download-sessions",
-                                   help="Save every session of an event to JSON")
+    download = commands.add_parser(
+        "download-sessions", help="Save every session of an event to JSON"
+    )
     add_event_id(download)
     add_catalog_path(download)
     download.add_argument("--locale", help="Language, for example en-US")
 
-    build_index = commands.add_parser("build-index",
-                                      help="Embed the saved sessions for search")
+    build_index = commands.add_parser(
+        "build-index", help="Embed the saved sessions for search"
+    )
     add_event_id(build_index)
     add_catalog_path(build_index)
     add_index_path(build_index)
@@ -143,10 +154,15 @@ def build_parser():
     search = commands.add_parser("search", help="Search the saved sessions")
     add_event_id(search)
     search.add_argument("query")
-    search.add_argument("--mode", choices=SEARCH_MODES, default="hybrid",
-                        help="How to match the query (default: hybrid)")
-    search.add_argument("--limit", type=int, default=10,
-                        help="Maximum number of results (default: 10)")
+    search.add_argument(
+        "--mode",
+        choices=SEARCH_MODES,
+        default="hybrid",
+        help="How to match the query (default: hybrid)",
+    )
+    search.add_argument(
+        "--limit", type=int, default=10, help="Maximum number of results (default: 10)"
+    )
     search.add_argument("--venue", help='Only this venue, for example "MGM Grand"')
     search.add_argument("--date", help="Only sessions on this day, as YYYY-MM-DD")
     add_catalog_path(search)
@@ -162,26 +178,32 @@ def add_event_id(parser):
 
 def add_catalog_path(parser):
     """Add the --catalog option for the saved sessions file."""
-    parser.add_argument("--catalog", type=Path,
-                        help="Sessions JSON file "
-                             "(default: <project>/data/EVENT-sessions.json)")
+    parser.add_argument(
+        "--catalog",
+        type=Path,
+        help="Sessions JSON file " "(default: <project>/data/EVENT-sessions.json)",
+    )
 
 
 def add_index_path(parser):
     """Add the --index option for the saved vector store file."""
-    parser.add_argument("--index", type=Path,
-                        help="Search index file "
-                             "(default: <project>/data/EVENT-vectors.json)")
+    parser.add_argument(
+        "--index",
+        type=Path,
+        help="Search index file " "(default: <project>/data/EVENT-vectors.json)",
+    )
 
 
 def add_personal_time_fields(parser):
     """Add the options that describe a personal time block."""
     parser.add_argument("--title", required=True)
     parser.add_argument("--description", required=True)
-    parser.add_argument("--start", required=True,
-                        help="UTC start, for example 2026-12-02T16:00:00")
-    parser.add_argument("--end", required=True,
-                        help="UTC end, for example 2026-12-02T17:00:00")
+    parser.add_argument(
+        "--start", required=True, help="UTC start, for example 2026-12-02T16:00:00"
+    )
+    parser.add_argument(
+        "--end", required=True, help="UTC end, for example 2026-12-02T17:00:00"
+    )
     parser.add_argument("--location")
 
 

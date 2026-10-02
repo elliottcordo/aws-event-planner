@@ -72,8 +72,12 @@ class SessionFilter:
 
     def is_empty(self):
         """Return True if no criteria are set, so every session matches."""
-        return (self.venue is None and self.date is None
-                and self.session_type is None and self.level is None)
+        return (
+            self.venue is None
+            and self.date is None
+            and self.session_type is None
+            and self.level is None
+        )
 
     def matches(self, session):
         """Return True if the session meets every criterion that is set."""

@@ -7,9 +7,9 @@ import json
 import secrets
 import time
 import urllib.parse
-import webbrowser
 from pathlib import Path
 
+from aws_events.browser import open_url
 from aws_events.errors import ApiError, EventsError, SignInError
 
 
@@ -72,8 +72,14 @@ class Authenticator:
         token = authenticator.get_access_token()
     """
 
-    def __init__(self, token_store, transport, open_browser=webbrowser.open,
-                 clock=time.time, sign_in_when_needed=True):
+    def __init__(
+        self,
+        token_store,
+        transport,
+        open_browser=open_url,
+        clock=time.time,
+        sign_in_when_needed=True,
+    ):
         """Create an authenticator.
 
         Args:
@@ -148,23 +154,27 @@ class Authenticator:
         )
         code = authorization_code_from_callback(callback_params, state)
 
-        tokens = self._request_tokens({
-            "grant_type": "authorization_code",
-            "client_id": CLIENT_ID,
-            "redirect_uri": REDIRECT_URI,
-            "code": code,
-            "code_verifier": verifier,
-        })
+        tokens = self._request_tokens(
+            {
+                "grant_type": "authorization_code",
+                "client_id": CLIENT_ID,
+                "redirect_uri": REDIRECT_URI,
+                "code": code,
+                "code_verifier": verifier,
+            }
+        )
         self._save(tokens)
         return tokens["access_token"]
 
     def refresh(self, refresh_token):
         """Exchange a refresh token for a new access token and save it."""
-        tokens = self._request_tokens({
-            "grant_type": "refresh_token",
-            "client_id": CLIENT_ID,
-            "refresh_token": refresh_token,
-        })
+        tokens = self._request_tokens(
+            {
+                "grant_type": "refresh_token",
+                "client_id": CLIENT_ID,
+                "refresh_token": refresh_token,
+            }
+        )
         # The token endpoint does not always return a new refresh token.
         tokens.setdefault("refresh_token", refresh_token)
         self._save(tokens)
@@ -202,16 +212,18 @@ def make_pkce_pair():
 
 def build_authorization_url(code_challenge, state):
     """Return the AWS Builder ID sign-in URL for the given PKCE challenge."""
-    query = urllib.parse.urlencode({
-        "response_type": "code",
-        "client_id": CLIENT_ID,
-        "redirect_uri": REDIRECT_URI,
-        "scope": SCOPE,
-        "identity_provider": "AWSBuilderID",
-        "code_challenge": code_challenge,
-        "code_challenge_method": "S256",
-        "state": state,
-    })
+    query = urllib.parse.urlencode(
+        {
+            "response_type": "code",
+            "client_id": CLIENT_ID,
+            "redirect_uri": REDIRECT_URI,
+            "scope": SCOPE,
+            "identity_provider": "AWSBuilderID",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "state": state,
+        }
+    )
     return f"{AUTHORIZE_URL}?{query}"
 
 
@@ -256,8 +268,12 @@ class CallbackHandler(http.server.BaseHTTPRequestHandler):
         """Silence the default request logging."""
 
 
-def wait_for_callback(authorization_url, open_browser, port=CALLBACK_PORT,
-                      timeout_seconds=SIGN_IN_TIMEOUT_SECONDS):
+def wait_for_callback(
+    authorization_url,
+    open_browser,
+    port=CALLBACK_PORT,
+    timeout_seconds=SIGN_IN_TIMEOUT_SECONDS,
+):
     """Open the sign-in page and wait for the browser to redirect back.
 
     Args:

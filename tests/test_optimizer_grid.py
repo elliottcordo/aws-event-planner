@@ -16,9 +16,13 @@ from web.optimizer import (
 
 def timed_session(session_id, venue, date, time, length="60"):
     """Return a catalog session at a venue, date and time."""
-    return make_session(session_id, f"Talk {session_id}",
-                        abbreviation=f"CODE-{session_id}", venue=venue,
-                        sessionTime={"date": date, "time": time, "length": length})
+    return make_session(
+        session_id,
+        f"Talk {session_id}",
+        abbreviation=f"CODE-{session_id}",
+        venue=venue,
+        sessionTime={"date": date, "time": time, "length": length},
+    )
 
 
 class GridTests(unittest.TestCase):
@@ -26,13 +30,16 @@ class GridTests(unittest.TestCase):
 
     def setUp(self):
         """Create two days of sessions; day two has a clash."""
-        self.catalog = SessionCatalog("e1", [
-            timed_session("a", "Venetian", "2026-12-01", "09:00"),
-            timed_session("b", "Venetian", "2026-12-02", "09:00"),
-            timed_session("c", "Venetian", "2026-12-02", "09:30"),
-            timed_session("d", "MGM Grand", "2026-12-02", "13:00"),
-            make_session("untimed", "No time yet"),
-        ])
+        self.catalog = SessionCatalog(
+            "e1",
+            [
+                timed_session("a", "Venetian", "2026-12-01", "09:00"),
+                timed_session("b", "Venetian", "2026-12-02", "09:00"),
+                timed_session("c", "Venetian", "2026-12-02", "09:30"),
+                timed_session("d", "MGM Grand", "2026-12-02", "13:00"),
+                make_session("untimed", "No time yet"),
+            ],
+        )
         self.schedule = {
             "reserved": ["d"],
             "favorites": ["a", "b", "c", "untimed"],
@@ -77,8 +84,9 @@ class GridTests(unittest.TestCase):
 
     def test_booked_sessions_are_locked_must_attend(self):
         """A booked session is kept and locked, even with nothing ticked."""
-        grid = build_grid(self.schedule, self.catalog, set(),
-                          {"2026-12-02": 1}, optimize=True)
+        grid = build_grid(
+            self.schedule, self.catalog, set(), {"2026-12-02": 1}, optimize=True
+        )
         rows = grid.days[1].rows
         self.assertEqual([row["id"] for row in rows], ["d"])
         self.assertTrue(rows[0]["locked"])
@@ -111,11 +119,14 @@ class FavoritesCsvTests(unittest.TestCase):
 
     def test_lists_favorites_only_in_time_order(self):
         """Every favorite is a row, booked or not; bookings alone are left out."""
-        catalog = SessionCatalog("e1", [
-            timed_session("late", "MGM Grand", "2026-12-02", "13:00"),
-            timed_session("early", "Venetian", "2026-12-01", "09:00", length="120"),
-            timed_session("booked-only", "Venetian", "2026-12-01", "11:00"),
-        ])
+        catalog = SessionCatalog(
+            "e1",
+            [
+                timed_session("late", "MGM Grand", "2026-12-02", "13:00"),
+                timed_session("early", "Venetian", "2026-12-01", "09:00", length="120"),
+                timed_session("booked-only", "Venetian", "2026-12-01", "11:00"),
+            ],
+        )
         schedule = {
             "reserved": ["late", "booked-only"],
             "favorites": ["late", "early", "missing"],
@@ -142,9 +153,15 @@ class ParseMaxVenuesTests(unittest.TestCase):
 
     def test_reads_valid_values_and_skips_others(self):
         """Good values are kept; malformed or out-of-range ones are skipped."""
-        result = parse_max_venues([
-            "2026-12-01:1", "2026-12-02:3", "2026-12-03:9", "2026-12-04:x", "junk",
-        ])
+        result = parse_max_venues(
+            [
+                "2026-12-01:1",
+                "2026-12-02:3",
+                "2026-12-03:9",
+                "2026-12-04:x",
+                "junk",
+            ]
+        )
         self.assertEqual(result, {"2026-12-01": 1, "2026-12-02": 3})
 
 
@@ -155,11 +172,14 @@ class DescribeMovesTests(unittest.TestCase):
         """Every stop is listed with the total travel time."""
         sessions = [
             PlannedSession.from_session(
-                timed_session("a", "Venetian", "2026-12-01", "09:00")),
+                timed_session("a", "Venetian", "2026-12-01", "09:00")
+            ),
             PlannedSession.from_session(
-                timed_session("b", "Caesars Forum", "2026-12-01", "10:30")),
+                timed_session("b", "Caesars Forum", "2026-12-01", "10:30")
+            ),
             PlannedSession.from_session(
-                timed_session("c", "MGM Grand", "2026-12-01", "12:30")),
+                timed_session("c", "MGM Grand", "2026-12-01", "12:30")
+            ),
         ]
         note = describe_moves(plan_day(sessions, max_venues=3))
         self.assertEqual(

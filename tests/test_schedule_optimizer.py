@@ -22,7 +22,8 @@ from tests.fakes import make_session
 def planned(session_id, venue, start, end, must_attend=False, day="2026-12-01"):
     """Return a PlannedSession on `day` from "HH:MM" start and end times."""
     return PlannedSession(
-        session_id, venue,
+        session_id,
+        venue,
         datetime.fromisoformat(f"{day}T{start}"),
         datetime.fromisoformat(f"{day}T{end}"),
         must_attend,
@@ -59,8 +60,12 @@ class PlannedSessionTests(unittest.TestCase):
 
     def test_from_session_uses_length(self):
         """The end time is the start plus the session's length."""
-        session = make_session("a", "A", venue=VENETIAN, sessionTime={
-            "date": "2026-12-01", "time": "10:30", "length": "120"})
+        session = make_session(
+            "a",
+            "A",
+            venue=VENETIAN,
+            sessionTime={"date": "2026-12-01", "time": "10:30", "length": "120"},
+        )
         result = PlannedSession.from_session(session, must_attend=True)
         self.assertEqual(result.start, datetime(2026, 12, 1, 10, 30))
         self.assertEqual(result.end, datetime(2026, 12, 1, 12, 30))
@@ -70,8 +75,9 @@ class PlannedSessionTests(unittest.TestCase):
 
     def test_missing_length_defaults_to_an_hour(self):
         """A session without a length is taken to last 60 minutes."""
-        session = make_session("a", "A", sessionTime={
-            "date": "2026-12-01", "time": "10:00"})
+        session = make_session(
+            "a", "A", sessionTime={"date": "2026-12-01", "time": "10:00"}
+        )
         result = PlannedSession.from_session(session)
         self.assertEqual(result.end, datetime(2026, 12, 1, 11, 0))
 
@@ -91,12 +97,14 @@ class PlanDayTests(unittest.TestCase):
 
     def test_drops_overlapping_sessions(self):
         """At one venue, the most non-overlapping sessions are kept."""
-        plan = plan_day([
-            planned("long", VENETIAN, "09:00", "12:00"),
-            planned("a", VENETIAN, "09:00", "10:00"),
-            planned("b", VENETIAN, "10:00", "11:00"),
-            planned("c", VENETIAN, "11:00", "12:00"),
-        ])
+        plan = plan_day(
+            [
+                planned("long", VENETIAN, "09:00", "12:00"),
+                planned("a", VENETIAN, "09:00", "10:00"),
+                planned("b", VENETIAN, "10:00", "11:00"),
+                planned("c", VENETIAN, "11:00", "12:00"),
+            ]
+        )
         self.assertEqual(plan.session_ids(), ["a", "b", "c"])
         self.assertEqual(plan.moves, [])
 
@@ -119,8 +127,7 @@ class PlanDayTests(unittest.TestCase):
             planned("m2", MGM_GRAND, "11:30", "12:30"),
         ]
         # 30 minutes is too short for the 60-minute trip to MGM Grand.
-        self.assertEqual(plan_day(sessions, max_venues=2).session_ids(),
-                         ["m1", "m2"])
+        self.assertEqual(plan_day(sessions, max_venues=2).session_ids(), ["m1", "m2"])
 
         sessions[1] = planned("m1", MGM_GRAND, "11:00", "12:00")
         sessions[2] = planned("m2", MGM_GRAND, "12:00", "13:00")

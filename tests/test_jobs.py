@@ -18,6 +18,7 @@ class JobTests(unittest.TestCase):
 
     def test_failure_records_error(self):
         """An exception marks the job failed with the error as its message."""
+
         def work(_job):
             raise RuntimeError("Download failed")
 

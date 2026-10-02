@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+# The detect-secrets baseline contains fingerprints, not live credentials.
+[allowlist]
+paths = [
+  '''^\.secrets\.baseline$''',
+]

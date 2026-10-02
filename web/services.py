@@ -4,7 +4,6 @@ Kept apart from the HTTP routes so the logic can be tested without a server.
 """
 
 import threading
-import webbrowser
 
 from aws_events import (
     ApiError,
@@ -19,6 +18,7 @@ from aws_events import (
     TokenStore,
     default_catalog_path,
     default_index_path,
+    open_url,
 )
 from aws_events.client import MAX_SESSIONS_PER_REQUEST
 from web.jobs import JobBoard
@@ -41,9 +41,15 @@ class Services:
         search = services.search_for("reinvent2026")
     """
 
-    def __init__(self, client, skins, embeddings_factory=FastEmbedEmbeddings,
-                 catalog_path=default_catalog_path, index_path=default_index_path,
-                 open_browser=webbrowser.open):
+    def __init__(
+        self,
+        client,
+        skins,
+        embeddings_factory=FastEmbedEmbeddings,
+        catalog_path=default_catalog_path,
+        index_path=default_index_path,
+        open_browser=open_url,
+    ):
         """Create the services.
 
         Args:
@@ -135,7 +141,7 @@ class Services:
         successful = []
         failed = []
         for start in range(0, len(session_ids), MAX_SESSIONS_PER_REQUEST):
-            batch = session_ids[start:start + MAX_SESSIONS_PER_REQUEST]
+            batch = session_ids[start : start + MAX_SESSIONS_PER_REQUEST]
             result = self.client.reserve_sessions(event_id, batch)
             successful.extend(result["successful"])
             failed.extend(result["failed"])
@@ -151,6 +157,7 @@ class Services:
         The sign-in link is put in `job.details["url"]` so the page can show
         it, in case no browser tab opened.
         """
+
         def work(job):
             def show_and_open(url):
                 job.details["url"] = url
@@ -164,12 +171,15 @@ class Services:
 
     def start_rebuild(self, event_id):
         """Start downloading and indexing an event's sessions; return the job."""
+
         def work(job):
             job.report("Downloading sessions...")
             catalog = SessionCatalog.download(self.client, event_id)
             catalog.save(self.catalog_path(event_id))
-            job.report(f"Building the search index for {len(catalog)} sessions "
-                       "(this can take a few minutes)...")
+            job.report(
+                f"Building the search index for {len(catalog)} sessions "
+                "(this can take a few minutes)..."
+            )
             vector_store = SessionVectorStore.build(catalog, self.embeddings())
             vector_store.save(self.index_path(event_id))
             with self._lock:

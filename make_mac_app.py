@@ -76,13 +76,22 @@ def build_icns(icon_source, icns_path):
                 suffix = "@2x" if scale == 2 else ""
                 output = iconset / f"icon_{size}x{size}{suffix}.png"
                 subprocess.run(
-                    ["sips", "-z", str(pixels), str(pixels), str(icon_source),
-                     "--out", str(output)],
-                    check=True, capture_output=True,
+                    [
+                        "sips",
+                        "-z",
+                        str(pixels),
+                        str(pixels),
+                        str(icon_source),
+                        "--out",
+                        str(output),
+                    ],
+                    check=True,
+                    capture_output=True,
                 )
         subprocess.run(
             ["iconutil", "-c", "icns", str(iconset), "-o", str(icns_path)],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
 

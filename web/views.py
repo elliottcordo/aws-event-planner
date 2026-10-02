@@ -41,8 +41,6 @@ def event_year(event_id, catalog=None):
 NO_LEVEL = "N/A"
 
 
-
-
 def short_level(level):
     """Return just the number of a level, such as "300" for "300 - Advanced".
 

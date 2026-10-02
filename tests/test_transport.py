@@ -42,8 +42,11 @@ class HttpTransportTests(unittest.TestCase):
         transport = HttpTransport(timeout_seconds=5, session=session)
 
         result = transport.request(
-            "POST", "https://example.test/x",
-            params={"a": "1"}, json_body={"b": 2}, headers={"H": "v"},
+            "POST",
+            "https://example.test/x",
+            params={"a": "1"},
+            json_body={"b": 2},
+            headers={"H": "v"},
         )
 
         self.assertEqual(result, {"ok": True})

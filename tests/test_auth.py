@@ -61,11 +61,13 @@ class AuthenticatorTests(unittest.TestCase):
 
     def test_expired_token_is_refreshed(self):
         """An expiring token is refreshed and the refresh token is kept."""
-        store = MemoryTokenStore({
-            "access_token": "old",
-            "refresh_token": "refresh-me",
-            "expires_at": NOW + 30,
-        })
+        store = MemoryTokenStore(
+            {
+                "access_token": "old",
+                "refresh_token": "refresh-me",
+                "expires_at": NOW + 30,
+            }
+        )
         transport = FakeTransport({"access_token": "new", "expires_in": 3600})
         authenticator = Authenticator(store, transport, clock=fixed_clock)
 
@@ -99,23 +101,32 @@ class AuthenticatorTests(unittest.TestCase):
 
     def test_rejected_refresh_token_falls_back_to_sign_in(self):
         """An invalid_grant reply clears the tokens and starts a new sign-in."""
-        store = MemoryTokenStore({
-            "access_token": "old", "refresh_token": "dead", "expires_at": NOW - 10,
-        })
+        store = MemoryTokenStore(
+            {
+                "access_token": "old",
+                "refresh_token": "dead",
+                "expires_at": NOW - 10,
+            }
+        )
         transport = FakeTransport(ApiError("invalid_grant", 400))
         authenticator = Authenticator(store, transport, clock=fixed_clock)
 
-        with mock.patch.object(authenticator, "sign_in",
-                               return_value="fresh") as sign_in:
+        with mock.patch.object(
+            authenticator, "sign_in", return_value="fresh"
+        ) as sign_in:
             self.assertEqual(authenticator.get_access_token(), "fresh")
         sign_in.assert_called_once()
         self.assertIsNone(store.tokens)
 
     def test_refresh_server_error_is_raised(self):
         """A server error during refresh is not treated as an expired sign-in."""
-        store = MemoryTokenStore({
-            "access_token": "old", "refresh_token": "ok", "expires_at": NOW - 10,
-        })
+        store = MemoryTokenStore(
+            {
+                "access_token": "old",
+                "refresh_token": "ok",
+                "expires_at": NOW - 10,
+            }
+        )
         transport = FakeTransport(ApiError("unavailable", 503))
         authenticator = Authenticator(store, transport, clock=fixed_clock)
 
@@ -135,12 +146,18 @@ class AuthenticatorTests(unittest.TestCase):
 
     def test_expired_sign_in_message_when_disabled(self):
         """A rejected refresh with sign-in disabled says the sign-in expired."""
-        store = MemoryTokenStore({
-            "access_token": "old", "refresh_token": "dead", "expires_at": NOW - 10,
-        })
+        store = MemoryTokenStore(
+            {
+                "access_token": "old",
+                "refresh_token": "dead",
+                "expires_at": NOW - 10,
+            }
+        )
         authenticator = Authenticator(
-            store, FakeTransport(ApiError("invalid_grant", 400)),
-            clock=fixed_clock, sign_in_when_needed=False,
+            store,
+            FakeTransport(ApiError("invalid_grant", 400)),
+            clock=fixed_clock,
+            sign_in_when_needed=False,
         )
         with self.assertRaisesRegex(SignInError, "expired"):
             authenticator.get_access_token()
@@ -217,17 +234,18 @@ class WaitForCallbackTests(unittest.TestCase):
                 except urllib.error.HTTPError as not_found:
                     not_found.close()
                 urllib.request.urlopen(f"{base}/callback?code=abc&state=s").read()
+
             threading.Thread(target=visit).start()
 
-        params = wait_for_callback("unused", fake_browser, port=port,
-                                   timeout_seconds=5)
+        params = wait_for_callback("unused", fake_browser, port=port, timeout_seconds=5)
         self.assertEqual(params, {"code": ["abc"], "state": ["s"]})
 
     def test_times_out(self):
         """No redirect within the timeout raises SignInError."""
         with self.assertRaisesRegex(SignInError, "timed out"):
-            wait_for_callback("unused", lambda _url: None, port=free_port(),
-                              timeout_seconds=0.2)
+            wait_for_callback(
+                "unused", lambda _url: None, port=free_port(), timeout_seconds=0.2
+            )
 
     def test_busy_port_gives_clear_error(self):
         """A port already in use raises SignInError, not OSError."""

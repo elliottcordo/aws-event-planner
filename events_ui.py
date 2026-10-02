@@ -59,6 +59,7 @@ EMPTY_SCHEDULE = {"reserved": [], "favorites": [], "personalTime": []}
 
 # Pure helpers (no Streamlit calls, so they can be unit tested)
 
+
 def format_day(day):
     """Return "YYYY-MM-DD" as a readable day such as "Wed 2 Dec"."""
     if not day:
@@ -107,16 +108,18 @@ def session_rows(sessions, icons):
     """
     rows = []
     for session in sessions:
-        rows.append({
-            "Mine": icons.get(session["sessionId"], ""),
-            "When": format_when(session),
-            "Code": session.get("abbreviation", ""),
-            "Title": session.get("title", ""),
-            "Abstract": session.get("abstract", ""),
-            "Venue": session_venue(session) or "",
-            "Type": session.get("type", ""),
-            "Level": session.get("level", ""),
-        })
+        rows.append(
+            {
+                "Mine": icons.get(session["sessionId"], ""),
+                "When": format_when(session),
+                "Code": session.get("abbreviation", ""),
+                "Title": session.get("title", ""),
+                "Abstract": session.get("abstract", ""),
+                "Venue": session_venue(session) or "",
+                "Type": session.get("type", ""),
+                "Level": session.get("level", ""),
+            }
+        )
     return rows
 
 
@@ -128,6 +131,7 @@ def filter_from_choices(venue_choice, date_choice):
 
 
 # Cached resources, shared across reruns
+
 
 @st.cache_resource
 def get_client():
@@ -171,6 +175,7 @@ def load_search(event_id):
 
 # Actions
 
+
 def download_and_rebuild(event_id):
     """Download the event's sessions, rebuild the search index, and reload."""
     with st.status("Updating session data...", expanded=True) as status:
@@ -182,8 +187,10 @@ def download_and_rebuild(event_id):
             st.error(f"{error}")
             return
         catalog.save(default_catalog_path(event_id))
-        st.write(f"Saved {len(catalog)} sessions. Building the search index "
-                 "(this can take a few minutes)...")
+        st.write(
+            f"Saved {len(catalog)} sessions. Building the search index "
+            "(this can take a few minutes)..."
+        )
         vector_store = SessionVectorStore.build(catalog, get_embeddings())
         vector_store.save(default_index_path(event_id))
         status.update(label=f"Indexed {len(catalog)} sessions.", state="complete")
@@ -247,6 +254,7 @@ def add_to_favorites(event_id, session_ids):
 
 # Page sections
 
+
 def render_header():
     """Show the title, event picker and rebuild button; return the event ID."""
     st.title("AWS Events session planner")
@@ -261,15 +269,18 @@ def render_search_panel(event_id, session_search):
     """Show filters, search box and results grid with an add-to-favorites button."""
     st.subheader("Find sessions")
     if session_search is None:
-        st.info("No session data for this event yet. "
-                "Click **Download data and rebuild index** to get it.")
+        st.info(
+            "No session data for this event yet. "
+            "Click **Download data and rebuild index** to get it."
+        )
         return
 
     catalog = session_search.catalog
     venue_column, date_column = st.columns(2)
     venue_choice = venue_column.selectbox("Venue", [ALL] + catalog.venues())
     date_choice = date_column.selectbox(
-        "Date", [ALL] + catalog.dates(),
+        "Date",
+        [ALL] + catalog.dates(),
         format_func=lambda choice: choice if choice == ALL else format_day(choice),
     )
     query = st.text_input(
@@ -308,9 +319,11 @@ def render_search_panel(event_id, session_search):
     if too_many:
         st.warning(f"Select at most {MAX_SESSIONS_PER_REQUEST} sessions at a time.")
     signed_in = is_signed_in()
-    if st.button(f"Add {len(selected_ids)} selected to favorites",
-                 disabled=not selected_ids or too_many or not signed_in,
-                 type="primary"):
+    if st.button(
+        f"Add {len(selected_ids)} selected to favorites",
+        disabled=not selected_ids or too_many or not signed_in,
+        type="primary",
+    ):
         add_to_favorites(event_id, selected_ids)
         st.rerun()
     if not signed_in:
@@ -328,8 +341,10 @@ def render_schedule_panel(event_id, catalog):
         st.error(st.session_state.schedule_error)
 
     if not is_signed_in():
-        st.info("Sign in with your AWS Builder ID to see your schedule "
-                "and add favorites.")
+        st.info(
+            "Sign in with your AWS Builder ID to see your schedule "
+            "and add favorites."
+        )
         if st.button("Sign in", type="primary"):
             sign_in(event_id)
             # Rerun so both panels show the signed-in state.

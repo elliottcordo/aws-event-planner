@@ -54,9 +54,9 @@ def group_schedule_by_date(schedule, catalog=None):
                 "sessionId": session_id,
                 "title": f"Session {session_id} (not in the local catalog)",
             }
-        entries.append(ScheduledSession(
-            session, session_id in reserved, session_id in favorites
-        ))
+        entries.append(
+            ScheduledSession(session, session_id in reserved, session_id in favorites)
+        )
     entries.sort(key=lambda entry: chronological_key(entry.session))
 
     groups = []

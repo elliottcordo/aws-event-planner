@@ -9,12 +9,15 @@ from tests.fakes import FakeVectorStore, make_session
 
 def sample_search(semantic_ranking):
     """Return a SessionSearch over four sessions with a fixed semantic ranking."""
-    catalog = SessionCatalog("e1", [
-        make_session("s1", "Serverless patterns", "Build with Lambda and SQS"),
-        make_session("s2", "Vector databases", "Store embeddings for retrieval"),
-        make_session("s3", "Cost optimization", "Spend less on compute"),
-        make_session("s4", "Lambda performance", "Tune Lambda cold starts"),
-    ])
+    catalog = SessionCatalog(
+        "e1",
+        [
+            make_session("s1", "Serverless patterns", "Build with Lambda and SQS"),
+            make_session("s2", "Vector databases", "Store embeddings for retrieval"),
+            make_session("s3", "Cost optimization", "Spend less on compute"),
+            make_session("s4", "Lambda performance", "Tune Lambda cold starts"),
+        ],
+    )
     return SessionSearch(catalog, FakeVectorStore(semantic_ranking))
 
 
@@ -84,10 +87,15 @@ class FilteredSearchTests(unittest.TestCase):
         sessions = []
         for number in range(1, 13):
             venue = "MGM Grand" if number % 2 else "Venetian"
-            sessions.append(make_session(
-                f"s{number}", f"Lambda talk {number}", "Lambda",
-                venue=venue, sessionTime={"date": "2026-12-02", "time": "09:00"},
-            ))
+            sessions.append(
+                make_session(
+                    f"s{number}",
+                    f"Lambda talk {number}",
+                    "Lambda",
+                    venue=venue,
+                    sessionTime={"date": "2026-12-02", "time": "09:00"},
+                )
+            )
         self.ranked_ids = [f"s{number}" for number in range(1, 13)]
         self.vector_store = FakeVectorStore(self.ranked_ids)
         catalog = SessionCatalog("e1", sessions)

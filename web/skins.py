@@ -33,7 +33,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # The sprite sheets the UI draws from; nothing else is served out of a skin.
 SPRITE_SHEETS = (
-    "main.bmp", "titlebar.bmp", "cbuttons.bmp", "shufrep.bmp", "text.bmp", "pledit.bmp",
+    "main.bmp",
+    "titlebar.bmp",
+    "cbuttons.bmp",
+    "shufrep.bmp",
+    "text.bmp",
+    "pledit.bmp",
 )
 
 # Guards against broken or hostile archives.
@@ -53,12 +58,28 @@ DEFAULT_PLAYLIST_STYLE = {
 # Winamp's default viscolor.txt: 0 is the background, 1 the grid dots, 2-17
 # the spectrum bars from top to bottom, 18-22 the oscilloscope, 23 the peaks.
 DEFAULT_VIS_COLORS = (
-    (0, 0, 0), (24, 33, 41),
-    (239, 49, 16), (206, 41, 16), (214, 90, 0), (214, 102, 0), (214, 115, 0),
-    (198, 123, 8), (222, 165, 24), (214, 181, 33), (189, 222, 41), (148, 222, 33),
-    (41, 206, 16), (50, 190, 16), (57, 181, 16), (49, 156, 8), (41, 148, 0),
+    (0, 0, 0),
+    (24, 33, 41),
+    (239, 49, 16),
+    (206, 41, 16),
+    (214, 90, 0),
+    (214, 102, 0),
+    (214, 115, 0),
+    (198, 123, 8),
+    (222, 165, 24),
+    (214, 181, 33),
+    (189, 222, 41),
+    (148, 222, 33),
+    (41, 206, 16),
+    (50, 190, 16),
+    (57, 181, 16),
+    (49, 156, 8),
+    (41, 148, 0),
     (24, 132, 8),
-    (255, 255, 255), (214, 214, 222), (181, 189, 189), (160, 170, 175),
+    (255, 255, 255),
+    (214, 214, 222),
+    (181, 189, 189),
+    (160, 170, 175),
     (148, 156, 165),
     (150, 150, 150),
 )
@@ -170,7 +191,7 @@ def relative_luminance(color):
         digits = "".join(digit * 2 for digit in digits)
     channels = []
     for start in (0, 2, 4):
-        value = int(digits[start:start + 2], 16) / 255
+        value = int(digits[start : start + 2], 16) / 255
         if value <= 0.03928:
             channels.append(value / 12.92)
         else:
@@ -277,8 +298,12 @@ class SkinRegistry:
         sheet = registry.sprite_sheet("garfield", "pledit.bmp")
     """
 
-    def __init__(self, registry_path=REGISTRY_PATH,
-                 cache_directory=SKIN_CACHE_DIRECTORY, download=download_file):
+    def __init__(
+        self,
+        registry_path=REGISTRY_PATH,
+        cache_directory=SKIN_CACHE_DIRECTORY,
+        download=download_file,
+    ):
         """Load the skin list.
 
         Args:

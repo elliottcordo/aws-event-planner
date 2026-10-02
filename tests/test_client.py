@@ -41,8 +41,9 @@ class EventTests(unittest.TestCase):
 
         client.list_events(include_past=True)
 
-        self.assertEqual(transport.requests[0]["url"],
-                         f"{BASE}/events?includePast=true")
+        self.assertEqual(
+            transport.requests[0]["url"], f"{BASE}/events?includePast=true"
+        )
 
     def test_public_calls_work_without_authenticator(self):
         """Public calls succeed when no authenticator is given."""
@@ -74,10 +75,13 @@ class SessionTests(unittest.TestCase):
         sessions = client.list_sessions("reinvent2026")
 
         self.assertEqual([s["sessionId"] for s in sessions], ["1", "2"])
-        self.assertEqual(transport.requests[0]["url"],
-                         f"{BASE}/events/reinvent2026/sessions")
-        self.assertEqual(transport.requests[1]["url"],
-                         f"{BASE}/events/reinvent2026/sessions?nextToken=abc")
+        self.assertEqual(
+            transport.requests[0]["url"], f"{BASE}/events/reinvent2026/sessions"
+        )
+        self.assertEqual(
+            transport.requests[1]["url"],
+            f"{BASE}/events/reinvent2026/sessions?nextToken=abc",
+        )
 
     def test_list_sessions_page_options(self):
         """locale and include_abstracts become query parameters."""
@@ -130,9 +134,7 @@ class SessionTests(unittest.TestCase):
 
     def test_second_401_is_raised(self):
         """If the retry is rejected too, the error is raised."""
-        client, transport = make_client(
-            ApiError("No", 401), ApiError("Still no", 401)
-        )
+        client, transport = make_client(ApiError("No", 401), ApiError("Still no", 401))
         with self.assertRaises(ApiError):
             client.get_schedule("e1")
         self.assertEqual(len(transport.requests), 2)
@@ -146,8 +148,9 @@ class SessionTests(unittest.TestCase):
 
         self.assertEqual(str(caught.exception), "This feature is not yet enabled")
         self.assertEqual(caught.exception.status_code, 409)
-        self.assertEqual(caught.exception.api_message,
-                         "This operation is currently disabled")
+        self.assertEqual(
+            caught.exception.api_message, "This operation is currently disabled"
+        )
 
     def test_session_call_does_not_retry_other_errors(self):
         """Errors other than 401 are raised without signing in."""
@@ -177,8 +180,7 @@ class ScheduleTests(unittest.TestCase):
             {"session": {"sessionId": "s2", "title": "Two"}},
         )
 
-        result = client.get_schedule("e1", include_session_details=True,
-                                     locale="en-US")
+        result = client.get_schedule("e1", include_session_details=True, locale="en-US")
 
         self.assertEqual([s["title"] for s in result["reserved"]], ["One", "Two"])
         self.assertEqual([s["title"] for s in result["favorites"]], ["Two"])
@@ -241,18 +243,27 @@ class ScheduleTests(unittest.TestCase):
         client.delete_personal_time("e1", "pt1")
 
         create, update, delete = transport.requests
-        self.assertEqual((create["method"], create["url"]),
-                         ("POST", f"{BASE}/events/e1/personal-time"))
-        self.assertEqual((update["method"], update["url"]),
-                         ("PUT", f"{BASE}/events/e1/personal-time/pt1"))
-        self.assertEqual((delete["method"], delete["url"]),
-                         ("DELETE", f"{BASE}/events/e1/personal-time/pt1"))
-        self.assertEqual(create["json_body"], {
-            "title": "Lunch",
-            "description": "Team lunch",
-            "startDateTime": "2026-12-02T19:00:00",
-            "endDateTime": "2026-12-02T20:00:00",
-        })
+        self.assertEqual(
+            (create["method"], create["url"]),
+            ("POST", f"{BASE}/events/e1/personal-time"),
+        )
+        self.assertEqual(
+            (update["method"], update["url"]),
+            ("PUT", f"{BASE}/events/e1/personal-time/pt1"),
+        )
+        self.assertEqual(
+            (delete["method"], delete["url"]),
+            ("DELETE", f"{BASE}/events/e1/personal-time/pt1"),
+        )
+        self.assertEqual(
+            create["json_body"],
+            {
+                "title": "Lunch",
+                "description": "Team lunch",
+                "startDateTime": "2026-12-02T19:00:00",
+                "endDateTime": "2026-12-02T20:00:00",
+            },
+        )
 
 
 class HelperTests(unittest.TestCase):
@@ -264,8 +275,9 @@ class HelperTests(unittest.TestCase):
 
     def test_personal_time_includes_location_when_set(self):
         """location is sent only when it has a value."""
-        block = PersonalTime("T", "D", "2026-12-02T19:00:00",
-                             "2026-12-02T20:00:00", location="Venetian")
+        block = PersonalTime(
+            "T", "D", "2026-12-02T19:00:00", "2026-12-02T20:00:00", location="Venetian"
+        )
         self.assertEqual(block.to_api_body()["location"], "Venetian")
 
 

@@ -19,6 +19,7 @@ Session search:
 """
 
 from aws_events.auth import Authenticator, TokenStore
+from aws_events.browser import open_url
 from aws_events.catalog import (
     SessionCatalog,
     SessionFilter,
@@ -70,6 +71,7 @@ __all__ = [
     "chronological_key",
     "default_catalog_path",
     "default_index_path",
+    "open_url",
     "optimize_schedule",
     "session_date",
     "session_start_time",

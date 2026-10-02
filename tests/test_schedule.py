@@ -9,8 +9,9 @@ from tests.fakes import make_session
 
 def scheduled_session(session_id, date, time):
     """Return a session starting at the given date and time."""
-    return make_session(session_id, f"Talk {session_id}",
-                        sessionTime={"date": date, "time": time})
+    return make_session(
+        session_id, f"Talk {session_id}", sessionTime={"date": date, "time": time}
+    )
 
 
 class ScheduleTests(unittest.TestCase):
@@ -18,11 +19,14 @@ class ScheduleTests(unittest.TestCase):
 
     def setUp(self):
         """Create a catalog and a schedule spread over two days."""
-        self.catalog = SessionCatalog("e1", [
-            scheduled_session("b", "2026-12-02", "14:00"),
-            scheduled_session("a", "2026-12-02", "09:00"),
-            scheduled_session("c", "2026-12-01", "10:00"),
-        ])
+        self.catalog = SessionCatalog(
+            "e1",
+            [
+                scheduled_session("b", "2026-12-02", "14:00"),
+                scheduled_session("a", "2026-12-02", "09:00"),
+                scheduled_session("c", "2026-12-01", "10:00"),
+            ],
+        )
         self.schedule = {
             "reserved": ["a", "c"],
             "favorites": ["a", "b", "missing"],
@@ -46,12 +50,15 @@ class ScheduleTests(unittest.TestCase):
             for _, entries in groups
             for entry in entries
         }
-        self.assertEqual(labels, {
-            "a": "Reserved, favorite",
-            "b": "Favorite",
-            "c": "Reserved",
-            "missing": "Favorite",
-        })
+        self.assertEqual(
+            labels,
+            {
+                "a": "Reserved, favorite",
+                "b": "Favorite",
+                "c": "Reserved",
+                "missing": "Favorite",
+            },
+        )
 
     def test_without_catalog_sessions_are_shown_by_id(self):
         """With no local catalog, every session is listed by ID, undated."""
