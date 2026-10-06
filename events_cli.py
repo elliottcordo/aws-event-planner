@@ -8,6 +8,7 @@ Usage examples:
     python3 events_cli.py schedule reinvent2026
     python3 events_cli.py schedule reinvent2026 --details
     python3 events_cli.py book reinvent2026 SESSION_ID [SESSION_ID ...]
+    python3 events_cli.py book-favorites reinvent2026
     python3 events_cli.py add-personal-time reinvent2026 --title Lunch \\
         --description "Team lunch" --start 2026-12-02T19:00:00 \\
         --end 2026-12-02T20:00:00
@@ -43,6 +44,7 @@ from aws_events import (
     open_url,
     session_venue,
 )
+from aws_events.booking import reserve_in_batches, session_ids_waiting_to_book
 
 
 def open_browser_with_fallback(url):
@@ -117,6 +119,18 @@ def build_parser():
     unfavorite = commands.add_parser("unfavorite", help="Remove a favorite")
     add_event_id(unfavorite)
     unfavorite.add_argument("session_id")
+
+    book_favorites = commands.add_parser(
+        "book-favorites",
+        help="Book unbooked favorites (interactive sessions by default)",
+    )
+    add_event_id(book_favorites)
+    add_catalog_path(book_favorites)
+    book_favorites.add_argument(
+        "--all",
+        action="store_true",
+        help="Include breakouts, not only chalk talks, workshops, and labs",
+    )
 
     add_time = commands.add_parser(
         "add-personal-time", help="Add a personal time block"
@@ -313,6 +327,17 @@ def run_command(args, client, authenticator, embeddings=None):
     if command == "unfavorite":
         client.remove_favorite(args.event_id, args.session_id)
         return "Favorite removed."
+    if command == "book-favorites":
+        schedule = client.get_schedule(args.event_id)
+        catalog = None
+        if not args.all:
+            catalog = load_catalog(args.catalog or default_catalog_path(args.event_id))
+        session_ids = session_ids_waiting_to_book(
+            schedule, catalog=catalog, interactive_only=not args.all
+        )
+        if not session_ids:
+            return "No unbooked favorites to reserve."
+        return reserve_in_batches(client, args.event_id, session_ids)
 
     if command == "add-personal-time":
         client.create_personal_time(args.event_id, personal_time_from_args(args))

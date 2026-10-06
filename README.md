@@ -131,6 +131,30 @@ disabled"), `book` stops with "This feature is not yet enabled". The web app
 shows the same message. Other operations the API has switched off behave the
 same way.
 
+re:Invent releases interactive seats in two waves on 6 October 2026, at
+**9 AM PT** and **5 PM PT**. To book every unbooked chalk talk, workshop,
+builders' session, lab, or code talk on your favorites list:
+
+```bash
+python3 events_cli.py book-favorites reinvent2026
+```
+
+To wait for those waves and keep retrying (full sessions are retried at 5 PM;
+already-booked or clashing ones are not):
+
+```bash
+python3 book_when_open.py reinvent2026
+```
+
+Pass `--all` to include breakouts. Leave the command running; it sleeps until
+each wave, then polls for 30 minutes (every 3 seconds for the first 5 minutes,
+then every 30 seconds). API errors and timeouts are logged and retried, so one
+busy moment does not end the run. Sign in with `events_cli.py login` first: the
+script never opens a browser itself, and if the saved sign-in stops working it
+logs a message and keeps retrying until you log in again. Keep the machine
+awake through each wave. Logs go to the terminal (or redirect them to
+`data/book-when-open.log`).
+
 Some sessions in a `reserve` call can fail while others succeed, so always check
 the `failed` list in the output. A session you already hold is also reported
 there, so re-running the same command is not a safe retry.
