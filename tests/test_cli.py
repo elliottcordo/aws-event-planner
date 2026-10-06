@@ -79,6 +79,22 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(result, "Reservation cancelled.")
         self.assertEqual(transport.requests[0]["method"], "DELETE")
 
+    def test_book_favorites_all_reserves_unbooked_ids(self):
+        """book-favorites --all books favorites that are not already reserved."""
+        result, transport = run(
+            ["book-favorites", "e1", "--all"],
+            {
+                "schedule": {
+                    "reserved": ["s1"],
+                    "favorites": ["s1", "s2"],
+                    "personalTime": [],
+                }
+            },
+            {"result": {"successful": ["s2"], "failed": []}},
+        )
+        self.assertEqual(result["successful"], ["s2"])
+        self.assertEqual(transport.requests[1]["json_body"], {"sessionIds": ["s2"]})
+
     def test_add_personal_time(self):
         """add-personal-time sends the block, including location."""
         argv = [

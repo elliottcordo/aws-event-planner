@@ -19,6 +19,7 @@ Session search:
 """
 
 from aws_events.auth import Authenticator, TokenStore
+from aws_events.booking import reserve_in_batches, session_ids_waiting_to_book
 from aws_events.browser import open_url
 from aws_events.catalog import (
     SessionCatalog,
@@ -72,6 +73,8 @@ __all__ = [
     "default_catalog_path",
     "default_index_path",
     "open_url",
+    "reserve_in_batches",
+    "session_ids_waiting_to_book",
     "optimize_schedule",
     "session_date",
     "session_start_time",
