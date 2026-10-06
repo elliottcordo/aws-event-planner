@@ -2,8 +2,10 @@
 """Wait for re:Invent reserve-open waves and book interactive favorites.
 
 Seats for interactive sessions are released at 9 AM PT and 5 PM PT on
-6 October 2026. This script sleeps until each wave, then retries until the
-wave window ends or every remaining favorite is booked or refused for good.
+6 October 2026. A minute before each wave this script starts probing with a
+one-session reserve call. As soon as booking is open it books every remaining
+favorite, then retries full sessions until the wave window ends. Failed
+requests are retried with exponential backoff.
 
 Usage:
     python3 book_when_open.py reinvent2026
@@ -15,6 +17,8 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+
+import backoff
 
 from aws_events import (
     Authenticator,
@@ -34,14 +38,17 @@ from aws_events.booking import (
     session_ids_waiting_to_book,
 )
 
-# Start hitting the API just before the published time, in case clocks differ.
-LEAD_SECONDS = 30
+# Start probing this long before the published time, in case clocks differ.
+PROBE_LEAD_SECONDS = 60
 # Keep trying through the first minutes after each wave.
 WINDOW_SECONDS = 30 * 60
-# Poll quickly while seats are going, then back off to avoid being throttled.
-FAST_POLL_SECONDS = 3
+# Poll quickly while seats are going, then slow down to avoid being throttled.
+FAST_POLL_SECONDS = 2
 FAST_POLL_WINDOW_SECONDS = 5 * 60
 SLOW_POLL_SECONDS = 30
+# After failed requests, wait 2, 4, 8, ... seconds, never more than a minute.
+BACKOFF_BASE_SECONDS = 2
+BACKOFF_MAX_SECONDS = 60
 
 
 @dataclass
@@ -63,6 +70,20 @@ class BookingRun:
     interactive_only: bool = True
     log: object = print
     blocked: set = field(default_factory=set)
+
+
+@dataclass
+class WaveState:
+    """Progress through one wave.
+
+    Attributes:
+        probe_id: The favorite reserved on its own to test whether booking
+            is open; chosen at the first step of the wave.
+        is_open: Whether a probe has shown that booking is open.
+    """
+
+    probe_id: str = None
+    is_open: bool = False
 
 
 def remaining_ids(run):
@@ -96,39 +117,99 @@ def record_result(run, result):
     return not retry_ids
 
 
-def attempt_wave(run):
-    """Reserve waiting favorites once. Return True if nothing is left to try.
+def probe_is_open(run, session_id):
+    """Reserve one favorite on its own. Return False while booking is off.
 
-    API errors are logged rather than raised: at release time the API is
-    busy, and one failed request must not end the run.
+    This is the cheapest request that shows whether booking is open: no
+    schedule lookup, one session ID. Any answer other than HTTP 409 means
+    it is open, and the probe may already have booked that session.
+
+    Raises:
+        EventsError: If the request fails for another reason.
     """
     try:
-        session_ids = remaining_ids(run)
-        if not session_ids:
-            run.log("Nothing left to book.")
-            return True
-        run.log(f"Booking {len(session_ids)} session(s)...")
-        result = reserve_in_batches(run.client, run.event_id, session_ids)
+        result = run.client.reserve_sessions(run.event_id, [session_id])
     except FeatureDisabledError:
-        run.log("Booking is not enabled yet.")
         return False
-    except SignInError as error:
+    run.log("Booking is open.")
+    record_result(run, result)
+    return True
+
+
+def book_remaining(run):
+    """Reserve every waiting favorite once. Return True if none is left to try.
+
+    Raises:
+        EventsError: If a request fails.
+    """
+    session_ids = remaining_ids(run)
+    if not session_ids:
+        run.log("Nothing left to book.")
+        return True
+    run.log(f"Booking {len(session_ids)} session(s)...")
+    result = reserve_in_batches(run.client, run.event_id, session_ids)
+    return record_result(run, result)
+
+
+def log_failure(run, error):
+    """Log a failed request in words that say what to do about it."""
+    if isinstance(error, SignInError):
         run.log(
             f"{error} Run 'venv/bin/python events_cli.py login' in another "
             "terminal; this script keeps retrying."
         )
-        return False
-    except EventsError as error:
+    else:
         run.log(f"Request failed, will retry: {error}")
-        return False
-    return record_result(run, result)
 
 
 def poll_seconds(seconds_since_wave):
-    """Return how long to wait before the next attempt in a wave."""
+    """Return how long to wait before the next probe or booking attempt."""
     if seconds_since_wave < FAST_POLL_WINDOW_SECONDS:
         return FAST_POLL_SECONDS
     return SLOW_POLL_SECONDS
+
+
+def is_feature_disabled(error):
+    """Return True for HTTP 409, which the wave loop handles, not backoff."""
+    return isinstance(error, FeatureDisabledError)
+
+
+def with_backoff(run, step, window_end, clock):
+    """Wrap `step` so failed requests are retried with exponential backoff.
+
+    Waits 2, 4, 8 ... seconds between tries, never more than a minute, and
+    gives up by re-raising once the wave window has closed. The backoff
+    library sleeps with time.sleep and measures its time limit itself.
+
+    Args:
+        run: The BookingRun, used to log each retry.
+        step: The function to retry.
+        window_end: When the wave window closes.
+        clock: Returns the current time, used to work out the time left.
+    """
+
+    def seconds_left():
+        """Return the seconds until the wave window closes."""
+        return max((window_end - clock()).total_seconds(), 0)
+
+    def log_retry(details):
+        """Log the failure and how long backoff will wait."""
+        log_failure(run, details["exception"])
+        run.log(f"Retrying in {details['wait']:.0f}s")
+
+    retrying = backoff.on_exception(
+        backoff.expo,
+        EventsError,
+        giveup=is_feature_disabled,
+        max_time=seconds_left,
+        jitter=None,
+        on_backoff=log_retry,
+        logger=None,
+        base=2,
+        factor=BACKOFF_BASE_SECONDS,
+        max_value=BACKOFF_MAX_SECONDS,
+    )
+    return retrying(step)
 
 
 def sleep_until(deadline, clock, sleeper, log):
@@ -141,14 +222,47 @@ def sleep_until(deadline, clock, sleeper, log):
         sleeper(min(remaining, 60))
 
 
-def try_through_wave(run, wave, clock, sleeper):
-    """Retry until the wave window ends. Return True if nothing is left to try."""
-    window_end = wave + timedelta(seconds=WINDOW_SECONDS)
-    while clock() <= window_end:
-        if attempt_wave(run):
+def take_step(run, state):
+    """Probe, or book once booking is open. Return True if none is left to try.
+
+    Raises:
+        EventsError: If a request fails.
+    """
+    if state.probe_id is None:
+        waiting = remaining_ids(run)
+        if not waiting:
+            run.log("Nothing left to book.")
             return True
-        seconds_since_wave = (clock() - wave).total_seconds()
-        sleeper(poll_seconds(seconds_since_wave))
+        state.probe_id = waiting[0]
+        run.log(f"Probing with {state.probe_id}")
+    if not state.is_open:
+        state.is_open = probe_is_open(run, state.probe_id)
+    if not state.is_open:
+        return False
+    return book_remaining(run)
+
+
+def try_through_wave(run, wave, clock, sleeper):
+    """Probe until booking opens, then book until the window ends.
+
+    Returns:
+        True if nothing is left to try, False if the window ran out first.
+    """
+    window_end = wave + timedelta(seconds=WINDOW_SECONDS)
+    state = WaveState()
+    step = with_backoff(run, take_step, window_end, clock)
+    while clock() <= window_end:
+        try:
+            if step(run, state):
+                return True
+        except FeatureDisabledError:
+            run.log("Booking was switched off again; probing.")
+            state.is_open = False
+        except EventsError as error:
+            log_failure(run, error)
+            run.log("Giving up on this wave: its window has closed.")
+            return False
+        sleeper(poll_seconds((clock() - wave).total_seconds()))
     return False
 
 
@@ -166,7 +280,7 @@ def run_waves(
         if clock() > window_end:
             run.log(f"Skipping ended wave {wave.isoformat()}")
             continue
-        start_at = wave - timedelta(seconds=LEAD_SECONDS)
+        start_at = wave - timedelta(seconds=PROBE_LEAD_SECONDS)
         sleep_until(start_at, clock, sleeper, run.log)
         run.log(f"Trying wave {wave.isoformat()}")
         ran_a_wave = True
@@ -175,9 +289,12 @@ def run_waves(
             return 0
     if not ran_a_wave:
         run.log("Both published waves have passed; trying once.")
-        if attempt_wave(run):
-            run.log("Done.")
-            return 0
+        try:
+            if book_remaining(run):
+                run.log("Done.")
+                return 0
+        except EventsError as error:
+            log_failure(run, error)
     run.log("Some sessions are still unbooked.")
     return 1
 
