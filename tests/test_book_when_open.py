@@ -373,5 +373,21 @@ class SignInCheckTests(unittest.TestCase):
         self.assertIn("events_cli.py login", problem)
 
 
+class CatalogLoadingTests(unittest.TestCase):
+    """Interactive-only booking requires a downloaded session catalog."""
+
+    def test_missing_catalog_has_download_instructions(self):
+        """A missing catalog raises a clear error instead of booking everything."""
+        with mock.patch.object(
+            book_when_open.SessionCatalog,
+            "load",
+            side_effect=FileNotFoundError,
+        ):
+            with self.assertRaisesRegex(
+                book_when_open.EventsError, "download-sessions e1"
+            ):
+                book_when_open.load_required_catalog("e1")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -299,12 +299,20 @@ def run_waves(
     return 1
 
 
-def load_optional_catalog(event_id):
-    """Return the saved catalog, or None if it has not been downloaded."""
+def load_required_catalog(event_id):
+    """Return the saved catalog or raise an error explaining how to create it.
+
+    Raises:
+        EventsError: If no catalog has been downloaded for the event.
+    """
+    path = default_catalog_path(event_id)
     try:
-        return SessionCatalog.load(default_catalog_path(event_id))
-    except FileNotFoundError:
-        return None
+        return SessionCatalog.load(path)
+    except FileNotFoundError as error:
+        raise EventsError(
+            f"No sessions saved at {path}. Run "
+            f"'venv/bin/python events_cli.py download-sessions {event_id}' first."
+        ) from error
 
 
 def check_signed_in(authenticator):
@@ -335,10 +343,17 @@ def main(argv=None):
     if problem:
         print(problem, file=sys.stderr)
         return 2
+    catalog = None
+    if not args.all:
+        try:
+            catalog = load_required_catalog(args.event_id)
+        except EventsError as error:
+            print(error, file=sys.stderr)
+            return 2
     run = BookingRun(
         client=EventsClient(transport, authenticator),
         event_id=args.event_id,
-        catalog=load_optional_catalog(args.event_id),
+        catalog=catalog,
         interactive_only=not args.all,
     )
     return run_waves(run)

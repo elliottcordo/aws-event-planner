@@ -31,12 +31,6 @@ GIVE_UP_CODES = {
     "timePassed",
 }
 
-# Still worth trying at the next wave, or again inside this one.
-RETRY_CODES = {
-    "sessionFull",
-    "other",
-}
-
 
 def reserve_wave_times(on_date=RESERVE_OPEN_DATE):
     """Return the 9 AM and 5 PM Pacific datetimes when seats are released."""
@@ -56,13 +50,21 @@ def session_ids_waiting_to_book(schedule, catalog=None, interactive_only=True):
 
     Args:
         schedule: A schedule dict with "reserved" and "favorites".
-        catalog: Used to skip breakouts when interactive_only is True.
+        catalog: Used to skip breakouts when interactive_only is True. It is
+            required in that mode so a missing catalog cannot silently make
+            every favorite eligible.
         interactive_only: If True, keep chalk talks, workshops, and the other
             limited-seat types. Sessions missing from the catalog are kept.
 
     Returns:
         Session IDs in favorite order.
+
+    Raises:
+        ValueError: If interactive_only is True but no catalog was provided.
     """
+    if interactive_only and catalog is None:
+        raise ValueError("A session catalog is required for interactive-only booking")
+
     reserved = set(schedule.get("reserved") or [])
     waiting = []
     for session_id in schedule.get("favorites") or []:
@@ -79,9 +81,7 @@ def session_ids_waiting_to_book(schedule, catalog=None, interactive_only=True):
 def should_retry_failure(failure):
     """Return whether a failed reserve is worth trying again."""
     code = failure.get("code")
-    if code in GIVE_UP_CODES:
-        return False
-    return code in RETRY_CODES or code is None
+    return code not in GIVE_UP_CODES
 
 
 def ids_to_retry(failed):

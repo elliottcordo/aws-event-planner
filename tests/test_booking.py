@@ -29,6 +29,13 @@ class InteractiveTests(unittest.TestCase):
 class WaitingToBookTests(unittest.TestCase):
     """Favorites that are not reserved yet."""
 
+    def test_interactive_only_requires_catalog(self):
+        """Missing catalog data cannot silently include every favorite."""
+        schedule = {"reserved": [], "favorites": ["a"], "personalTime": []}
+
+        with self.assertRaisesRegex(ValueError, "catalog is required"):
+            session_ids_waiting_to_book(schedule)
+
     def test_skips_already_reserved_and_breakouts(self):
         """Keep interactive favorites that are not already booked."""
         catalog = SessionCatalog(
@@ -78,6 +85,13 @@ class RetryTests(unittest.TestCase):
             ),
             ["full"],
         )
+
+    def test_unknown_failure_codes_are_retried(self):
+        """New API failure codes remain eligible for a later attempt."""
+        failure = {"sessionId": "a", "code": "temporaryNewFailure"}
+
+        self.assertTrue(should_retry_failure(failure))
+        self.assertEqual(ids_to_retry([failure]), ["a"])
 
     def test_failures_without_an_id_are_skipped(self):
         """A failure missing sessionId cannot be retried and does not raise."""
